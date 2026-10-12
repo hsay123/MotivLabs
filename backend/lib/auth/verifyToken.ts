@@ -107,7 +107,7 @@ async function loadUserById(id: string): Promise<AuthUser> {
   return data as AuthUser;
 }
 
-async function loadOrCreateUserByPrivyDid(
+export async function loadOrCreateUserByPrivyDid(
   claims: PrivyClaims,
 ): Promise<AuthUser> {
   const supabase = getSupabase();
@@ -125,6 +125,11 @@ async function loadOrCreateUserByPrivyDid(
   }
 
   // First login: create a contributor by default (ASSUMPTIONS A4).
+  // Two concurrent first logins for the same Privy user can both pass the
+  // SELECT above while the row is still absent (e.g. the browser fires more
+  // than one `/api/me` on a fresh login), so the INSERT may lose the race and
+  // hit the users_privy_did_key unique constraint. The loser then backs off
+  // and reads the winner's row instead of failing the request.
   const { data: created, error: createError } = await supabase
     .from("users")
     .insert({
@@ -135,7 +140,20 @@ async function loadOrCreateUserByPrivyDid(
     })
     .select("*")
     .single();
-  if (createError) throw new Error(`Failed to create user: ${createError.message}`);
+  if (createError) {
+    if (/duplicate key|23505/i.test(createError.message ?? "")) {
+      const { data: winner, error: winnerError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("privy_did", claims.privyDid)
+        .maybeSingle();
+      if (winnerError) {
+        throw new Error(`Failed to load user: ${winnerError.message}`);
+      }
+      if (winner) return winner as AuthUser;
+    }
+    throw new Error(`Failed to create user: ${createError.message}`);
+  }
   return created as AuthUser;
 }
 

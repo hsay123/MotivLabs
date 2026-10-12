@@ -9,7 +9,7 @@
  *
  * Prereqs:
  *   npm i -D playwright && npx playwright install chromium   (in the repo root)
- *   backend running on :3001, frontend on :3000
+ *   backend running on :3010, frontend on :3000 (HTTPS, `npm run dev`)
  *   backend/.env.test.local with TEST_ACCOUNTS (used only to print which email to use)
  *
  * Usage: node scripts/capture-sessions.mjs [role ...]
@@ -20,7 +20,7 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 
-const FRONTEND = process.env.FRONTEND_URL ?? "http://localhost:3000";
+const FRONTEND = process.env.FRONTEND_URL ?? "https://localhost:3000";
 const OUT_DIR = path.join(process.cwd(), "playwright", ".auth");
 const ALL_ROLES = ["buyer", "contributor", "reviewer", "admin"];
 
@@ -41,7 +41,8 @@ function loadTestAccounts() {
 
 async function capture(role, email) {
   const browser = await chromium.launch({ headless: false });
-  const context = await browser.newContext();
+  // Dev server uses a locally generated (self-signed) certificate.
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
   const page = await context.newPage();
   await page.goto(`${FRONTEND}/login`, { waitUntil: "domcontentloaded" });
 

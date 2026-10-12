@@ -4,82 +4,65 @@ This file lists the exact things that stop work, with the command or value neede
 
 ---
 
-## B1 (HARD BLOCKER) — Database schema is not applied
+## B1 — Database schema — ✅ RESOLVED (2026-10-12, via the Supabase MCP server)
 
-**Symptom (verified by calling Supabase REST with the service-role key):**
+The 14-table schema was applied to `sfebambrdcfqrdmetflw.supabase.co` from the repo migrations
+(`backend/supabase/migrations/001…005`, same content as `backend/supabase/all_migrations.sql`) through the
+authenticated Supabase MCP server — `apply_migration` per file, in order — then `notify pgrst, 'reload schema';`.
 
-```
-GET {SUPABASE_URL}/rest/v1/users?select=id&limit=1
-→ 404  {"code":"PGRST205","message":"Could not find the table 'public.users' in the schema cache"}
-```
+Verification (all green):
 
-The migrations in `backend/supabase/migrations/` (001–005) have never been run against this project. Nothing
-that touches the database (`/api/me`, `/api/jobs`, seeding, every E2E slice) can work until they are.
+| Check | Result |
+| --- | --- |
+| `list_migrations` | `001_initial_schema` … `005_appeals_indexes` recorded |
+| `information_schema` | 14 public tables, 8 enum types, 14/14 tables RLS-enabled |
+| `schema_versions` | seeded, 2 rows (`image-boxes-v1`, `action-segments-v1`) |
+| `scripts/infra-check.mjs` | **INFRA READY** |
 
-**Why I cannot do it:** there is no `DATABASE_URL` in `backend/.env.local`, and the service-role JWT cannot
-run DDL over PostgREST (`/pg/query` → 404). Migrations are plain SQL and need a real Postgres connection.
+**No GRANTs were added.** The Data API (anon/authenticated) still sees nothing — RLS is enabled with no
+policies on every table, per the service-role-only design. The backend talks to the database with the
+service-role key (bypasses RLS), so the app needs no extra grants.
 
-**Unblock — pick ONE:**
-
-Option A — give the agent a connection string (add to `backend/.env.local`, gitignored):
-```
-DATABASE_URL=postgresql://postgres:<DB-PASSWORD>@db.<project-ref>.supabase.co:5432/postgres
-```
-(Or the Supavisor pooler string from Supabase → Project Settings → Database → Connection string.)
-Then run: `cd backend && psql "$DATABASE_URL" -f supabase/all_migrations.sql`
-
-Option B — apply it yourself in the Supabase SQL editor:
-1. Open Supabase → SQL Editor → New query.
-2. Paste the entire contents of `backend/supabase/all_migrations.sql` and click **Run**.
-   (This file is migrations 001–005 concatenated in order.)
-3. Confirm with: `select count(*) from users;` — should succeed (0 rows).
-
-After either option, also run the seed: `cd backend && npm run seed`.
+To re-apply on another project later: Supabase SQL editor → paste `backend/supabase/all_migrations.sql`
+→ Run, then `cd backend && npm run seed`.
 
 ---
 
-## B2 (HARD BLOCKER) — Storage bucket `media` does not exist
+## B2 — Storage bucket `media` — ✅ RESOLVED
 
-**Symptom:** `GET {SUPABASE_URL}/storage/v1/bucket/media` → 400 `{"code":"NoSuchBucket"}`.
-
-The backend signs 5-minute media URLs against a private bucket named `media`
-(`SUPABASE_STORAGE_BUCKET`, default `media`). Signed-URL and upload flows fail until it exists.
-
-**Unblock:** create a **private** bucket named `media` (Supabase → Storage → New bucket → name `media`,
-public = off). Or provide a service-role request that the agent can run — bucket creation is a Storage API
-call, not DDL, so once migration B1 is done the agent can also run:
-
-```
-POST {SUPABASE_URL}/storage/v1/bucket   {"id":"media","name":"media","public":false}
-```
+Created via the Storage API on `sfebambrdcfqrdmetflw`: `POST /storage/v1/bucket {"id":"media","name":"media","public":false}`
+→ HTTP 200. Verified private by `scripts/infra-check.mjs`.
 
 ---
 
-## B3 (BLOCKER for automated E2E) — Privy login cannot be automated
+## B3 — Privy login can now be automated — ✅ FULLY RESOLVED
 
-There is no `TEST_ACCOUNTS` and no saved `playwright/.auth/*.json`, and Privy email login needs an OTP that a
-human must receive. Without one of the following, Phase 4 (S1–S7) cannot authenticate and must be reported as
-blocked rather than faked.
+Privy's email-OTP test credentials stay disabled, so the server cannot mint tokens. But the
+external-**wallet** path is fully automatable: `scripts/capture-session-auto.mjs <role>` announces a mock
+EIP-6963 wallet whose signatures are produced by a real local secp256k1 key (`viem`) — genuine
+signatures, real Privy session, no human in the loop. It saves `playwright/.auth/<role>.json`
+(gitignored) and verifies `/api/me` resolves before declaring success.
 
-**Unblock — pick ONE:**
+Each role gets its own wallet (`playwright/.auth/wallet-<role>.key`, gitignored, generated on first
+use), so buyer / contributor / reviewer / admin are four distinct real users. Promote each to its role
+the first time with `backend/scripts/set-role.ts` (now accepts email, wallet address, or Privy DID):
 
-Option A (best) — Privy dashboard **test accounts**:
-- Enable test accounts in the Privy dashboard.
-- Create four accounts and add to `backend/.env.test.local` (gitignored):
-  ```
-  TEST_ACCOUNTS={"buyer":"you+buyer@…","contributor":"you+contrib@…","reviewer":"you+reviewer@…","admin":"you+admin@…"}
-  PRIVY_TEST_OTP=<static code shown in the dashboard>
-  ```
+```
+node scripts/capture-session-auto.mjs buyer   # prints the wallet address
+(cd backend && npx tsx scripts/set-role.ts 0x… buyer)
+```
 
-Option B — capture sessions once, headed:
-- Start backend (3001) and frontend (3000).
-- `node scripts/capture-sessions.mjs` → log in once per role in the opened browser.
-- Saves `playwright/.auth/<role>.json` (gitignored).
+Re-run the capture for a role right before a browser run; the captured session is a real access token
+with a ~1h lifetime and Privy rotates refresh tokens, so a stale file lands on `/login`.
+
+The headed manual flow (`node scripts/capture-sessions.mjs <role>`) still works for a human's own
+account if needed. 2026-10-12: all four roles captured automatically; S1 green (5/5), S2 green (2/2).
 
 ## B4 — Privy dashboard allowed origin
 
-`http://localhost:3000` must be listed under the Privy app's allowed origins, or the browser SDK login is
-rejected. (Dashboard setting — cannot be changed from here.)
+`https://localhost:3000` must be listed under the Privy app's allowed origins, or the browser SDK login is
+rejected. (Dashboard setting — cannot be changed from here.) The frontend runs on :3000 over **HTTPS**
+(Sign-In with Ethereum requires it — see B7), matching the origin to allow-list.
 
 ---
 
@@ -92,12 +75,24 @@ are possible without it; the actual Monad deploy is left as exact commands in `d
 
 ---
 
-## B6 — missing frontend env
+## B6 — frontend env — ✅ RESOLVED
 
-There is no frontend `.env.local`. The frontend needs (public, non-secret):
+Frontend `.env.local` now holds the public app id and the same-origin API path:
 ```
-NEXT_PUBLIC_PRIVY_APP_ID=<same app id as the backend>
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+NEXT_PUBLIC_API_BASE_URL=/platform        # browser → same-origin HTTPS proxy (next.config.ts)
+PLATFORM_API_URL=http://localhost:3010    # server-side rewrite target (not public)
+NEXT_PUBLIC_PRIVY_APP_ID=cmv2vvueq01hu0gjju69ht0wf   (public identifier)
 ```
-The agent can write the backend's `PRIVY_APP_ID` value into the frontend env (it is a public identifier), but
-will not print or commit it. `NEXT_PUBLIC_API_BASE_URL` and a backend port of 3001 are set by the agent.
+`@privy-io/react-auth` is installed and `PrivyProvider` wraps the app (email + wallet, embedded wallet for
+users without one, Monad testnet default chain). Backend `FRONTEND_ORIGIN` is `https://localhost:3000`.
+
+Port note: an unrelated container owns :3001, so the backend runs on :3010 and the frontend on :3000.
+
+## B7 — wallet origin vs. `http://localhost` — ✅ FIXED
+
+Brave Wallet rejected wallet login on `http://localhost:3000` because Privy's SIWE `domain` is scheme-less
+and ERC-4361 defaults it to `https`, so the origin appeared to differ. Fixed by serving dev over HTTPS:
+`npm run dev` now uses `next dev --experimental-https` with a cert generated into `certificates/`
+(gitignored) by `scripts/ensure-dev-cert.mjs`; the API is proxied same-origin under `/platform`.
+Verified by `scripts/verify-wallet-siwe.mjs`. Re-run `sudo mkcert -install` once to remove the browser's
+self-signed-certificate warning.

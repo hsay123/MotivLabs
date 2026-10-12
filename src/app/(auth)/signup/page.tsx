@@ -19,7 +19,7 @@ export default function SignupPage() {
   return (
     <AuthShell
       title="Start with one job."
-      subtitle="Create an account and choose a role. In this build, sign-up validates your details and moves to role selection in preview mode — no account is actually created."
+      subtitle="Create an account and choose a role. Sign-in uses an email one-time code or a wallet, and a wallet is created for you if you don't have one."
       aside={
         <ul className="space-y-3">
           {points.map((point) => (

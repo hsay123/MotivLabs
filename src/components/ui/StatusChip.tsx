@@ -39,11 +39,13 @@ export const statusSpecs: Record<string, ChipSpec> = {
   /* Task lifecycle */
   available: { label: "Available", tone: "neutral", Icon: FileText },
   assigned: { label: "Assigned", tone: "info", Icon: Lock },
+  claimed: { label: "Claimed", tone: "info", Icon: Lock },
   draft: { label: "Draft", tone: "neutral", Icon: FileText },
   submitted: { label: "Submitted", tone: "info", Icon: Check },
   validating: { label: "Validating", tone: "info", Icon: Clock },
   in_review: { label: "In review", tone: "pending", Icon: Clock },
   accepted: { label: "Accepted", tone: "success", Icon: Check },
+  needs_revision: { label: "Needs revision", tone: "pending", Icon: AlertTriangle },
   revision_requested: {
     label: "Revision requested",
     tone: "pending",
@@ -58,6 +60,9 @@ export const statusSpecs: Record<string, ChipSpec> = {
     Icon: AlertTriangle,
   },
 
+  /* Appeals */
+  open: { label: "Open", tone: "pending", Icon: Scale },
+
   /* Payout lifecycle */
   not_eligible: { label: "Not eligible", tone: "neutral", Icon: Info },
   eligible: { label: "Eligible", tone: "info", Icon: Info },
@@ -67,6 +72,7 @@ export const statusSpecs: Record<string, ChipSpec> = {
 
   /* Job status */
   active: { label: "Active", tone: "success", Icon: Play },
+  published: { label: "Published", tone: "success", Icon: Play },
   awaiting_funding: { label: "Awaiting funding", tone: "pending", Icon: Clock },
   paused: { label: "Paused", tone: "pending", Icon: Clock },
   closed: { label: "Closed", tone: "neutral", Icon: Check },

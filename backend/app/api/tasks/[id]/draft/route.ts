@@ -11,10 +11,29 @@ import { withCors, corsOptions } from "@/lib/api/cors";
 import { readJson } from "@/lib/api/request";
 import { requireRole } from "@/lib/auth/requireRole";
 import { parseAnnotationPayload } from "@/lib/annotation/validate";
-import { saveDraftPayload } from "@/lib/tasks/submissions";
+import { loadWorkPayload, saveDraftPayload } from "@/lib/tasks/submissions";
 
 export async function OPTIONS() {
   return corsOptions();
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  return withCors(
+    await withErrorHandler(async () => {
+      const user = await requireRole(req, "contributor");
+      const { id } = await params;
+
+      const result = await loadWorkPayload({
+        taskId: id,
+        contributorId: user.id,
+      });
+
+      return ok(result);
+    }),
+  );
 }
 
 export async function PUT(

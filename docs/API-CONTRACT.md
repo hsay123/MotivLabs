@@ -4,8 +4,9 @@ Derived from the running code in `backend/` (`app/api/**`, `src/types/api.ts`,
 `lib/api/response.ts`). Envelope, auth, CORS, and error codes are global.
 
 ## Global conventions
-- **Base URL (dev):** `http://localhost:3001` · **Frontend origin:** `http://localhost:3000`
-  (set via `FRONTEND_ORIGIN`; CORS allow-lists exactly this origin).
+- **Base URL (dev):** `http://localhost:3010` · **Frontend origin:** `https://localhost:3000`
+  (set via `FRONTEND_ORIGIN`; CORS allow-lists exactly this origin). In the browser the API is reached
+  same-origin at `/platform` and proxied to the backend by `next.config.ts` (HTTPS avoids mixed content).
 - **Success envelope:** `{ "data": ... }`
 - **Error envelope:** `{ "error": { "code": string, "message": string, "details"?: unknown } }`
 - **Error codes → status:** `BAD_REQUEST` 400 · `UNAUTHORIZED` 401 · `FORBIDDEN` 403 ·

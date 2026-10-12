@@ -170,6 +170,8 @@ export interface Task {
   is_gold: boolean;
   lease_owner: string | null;
   lease_expiry: string | null;
+  job_title?: string;
+  label_list?: string[];
   // signed_media_url: only present on GET /api/tasks/:id
   signed_media_url?: string;
   created_at: string;
@@ -379,10 +381,15 @@ export interface EarningsSummary {
   total_pending: string;        // accepted but not yet paid
   tasks: Array<{
     task_id: string;
+    submission_id: string;
     job_title: string;
     status: TaskStatus;
     reward: string;
     submitted_at: string;
+    /** Payout receipt id, or null when the task is not settled yet. */
+    receipt_id: string | null;
+    /** Whether the recorded payout is a mock settlement (never on-chain). */
+    settlement_is_mock: boolean | null;
     tx_hash: string | null;
   }>;
 }

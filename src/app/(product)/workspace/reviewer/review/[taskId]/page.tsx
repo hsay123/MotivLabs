@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { readTask } from "@/lib/api/read";
 import { ReviewConsole } from "@/components/product/ReviewConsole";
 import { WorkspaceHeader } from "@/components/product/WorkspaceHeader";
 
@@ -13,8 +11,6 @@ export default async function ReviewDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const { data: task } = await readTask(taskId);
-  if (!task) notFound();
 
   return (
     <>
@@ -22,17 +18,19 @@ export default async function ReviewDetailPage({
         <Link href="/workspace/reviewer" className="hover:text-ink">
           Queue
         </Link>
-        <span aria-hidden className="mx-2">/</span>
-        <span className="font-mono">{task.id}</span>
+        <span aria-hidden className="mx-2">
+          /
+        </span>
+        <span className="font-mono">{taskId}</span>
       </nav>
 
       <WorkspaceHeader
-        eyebrow={`${task.jobId} · review`}
+        eyebrow="Reviewer · decision"
         title="Evaluate submission"
-        description="Compare the submitted segments against the source clip and the rubric, then record a reason-coded decision."
+        description="Compare the submitted annotation with the media, then record a decision. Validation runs at submit time; your decision is tied to this submission version."
       />
 
-      <ReviewConsole task={task} />
+      <ReviewConsole taskId={taskId} />
     </>
   );
 }

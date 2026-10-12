@@ -24,7 +24,7 @@ async function main() {
   const [, , who, roleArg] = process.argv;
 
   if (!who || !roleArg) {
-    console.error("Usage: npx tsx scripts/set-role.ts <email-or-did> <buyer|contributor|reviewer|admin>");
+    console.error("Usage: npx tsx scripts/set-role.ts <email-or-wallet-or-did> <buyer|contributor|reviewer|admin>");
     process.exit(1);
   }
   if (!isRole(roleArg)) {
@@ -43,15 +43,20 @@ async function main() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Match on email first, then Privy DID.
+  // Match on email, then wallet address (case-insensitive), then Privy DID.
   const isEmail = who.includes("@");
-  const column = isEmail ? "email" : "privy_did";
+  const isAddress = /^0x[0-9a-fA-F]{40}$/.test(who);
 
-  const { data: found, error: findError } = await supabase
+  const query = supabase
     .from("users")
-    .select("id, email, privy_did, role")
-    .eq(column, who)
-    .maybeSingle();
+    .select("id, email, privy_did, role");
+
+  const { data: found, error: findError } = isEmail
+    ? await query.eq("email", who).maybeSingle()
+    : isAddress
+      ? await query.ilike("wallet_address", who).maybeSingle()
+      : await query.eq("privy_did", who).maybeSingle();
+  const column = isEmail ? "email" : isAddress ? "wallet_address" : "privy_did";
 
   if (findError) {
     console.error(`Lookup failed: ${findError.message}`);

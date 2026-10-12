@@ -1,78 +1,246 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { Check, Info } from "@/components/ui/icons";
+import { InlineError } from "@/components/product/AsyncView";
+import { useSession } from "@/lib/api/session";
+import { useProjects } from "@/lib/api/live";
+import {
+  PlatformError,
+  SCHEMA_VERSIONS,
+  jobSchema,
+  platformPaths,
+  projectSchema,
+  taskSchema,
+  type Job,
+} from "@/lib/api/platform";
+import { uploadAsset } from "@/lib/media/upload";
 import { cn } from "@/lib/utils/cn";
+import { z } from "zod";
 
 const steps = [
   { id: "project", label: "Project" },
-  { id: "rights", label: "Data rights" },
+  { id: "media", label: "Media" },
   { id: "schema", label: "Schema" },
   { id: "budget", label: "Budget" },
   { id: "review", label: "Review" },
 ] as const;
 
+type Modality = "image" | "video";
+
+type Values = {
+  projectId: string;
+  projectName: string;
+  dataRights: string;
+  retention: string;
+  title: string;
+  description: string;
+  modality: Modality;
+  labels: string;
+  policy: string;
+  budget: string;
+  reward: string;
+  deadline: string;
+};
+
+type Progress = { label: string; status: "running" | "done" | "error" };
+
+const defaultLabels = (modality: Modality) =>
+  (modality === "image" ? SCHEMA_VERSIONS.image.labels : SCHEMA_VERSIONS.video.labels).join(
+    ", ",
+  );
+
+const initialValues: Values = {
+  projectId: "",
+  projectName: "",
+  dataRights: "",
+  retention: "",
+  title: "",
+  description: "",
+  modality: "video",
+  labels: defaultLabels("video"),
+  policy: "",
+  budget: "",
+  reward: "",
+  deadline: "",
+};
+
+const modalitySchemaFor = (modality: Modality) =>
+  modality === "image" ? SCHEMA_VERSIONS.image : SCHEMA_VERSIONS.video;
+
+const parseLabels = (raw: string) =>
+  raw
+    .split(",")
+    .map((label) => label.trim())
+    .filter(Boolean);
+
 /**
- * Job creation wizard.
+ * Job creation wizard — the real S2 flow.
  *
- * The specification requires an explicit rights declaration and funding
- * step before tasks become payable. Because no platform API is connected
- * in this build, the final step validates the form and then states
- * plainly that the job was not created.
+ * Creates a project (or reuses one), uploads the selected media to object
+ * storage, registers each asset with its content hash and dimensions, creates
+ * the draft job, generates one task per asset, then publishes the job so the
+ * tasks become claimable. Every step is a real API call; failures are shown,
+ * never swallowed. Gold tasks are admin-only and are not offered to buyers.
  */
 export function NewJobWizard() {
-  const [step, setStep] = useState(0);
-  const [submitted, setSubmitted] = useState(false);
-  const [values, setValues] = useState<Record<string, string>>({
-    title: "",
-    modality: "egocentric_video",
-    schemaVersion: "action-segments-v1",
-    rights: "",
-    budget: "",
-    reward: "",
-    deadline: "",
-    policy: "",
-  });
+  const { client } = useSession();
+  const projectsQuery = useProjects();
 
-  const set = (key: string) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    setValues((prev) => ({ ...prev, [key]: event.target.value }));
+  const [step, setStep] = useState(0);
+  const [values, setValues] = useState<Values>(initialValues);
+  const [files, setFiles] = useState<File[]>([]);
+  const [progress, setProgress] = useState<Progress[]>([]);
+  const [error, setError] = useState<PlatformError | null>(null);
+  const [createdJob, setCreatedJob] = useState<Job | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const set =
+    (key: keyof Values) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setValues((prev) => ({ ...prev, [key]: event.target.value }));
+
+  const setModality = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const modality = event.target.value as Modality;
+    setValues((prev) => ({
+      ...prev,
+      modality,
+      labels: prev.labels === defaultLabels(prev.modality) ? defaultLabels(modality) : prev.labels,
+    }));
+  };
+
+  const labelList = useMemo(() => parseLabels(values.labels), [values.labels]);
 
   const canAdvance = () => {
-    if (step === 0) return values.title.trim().length > 3;
-    if (step === 1) return values.rights.trim().length > 0;
-    if (step === 2) return values.schemaVersion.length > 0;
+    if (step === 0) {
+      if (!values.projectId && values.projectName.trim().length < 2) return false;
+      return values.title.trim().length > 0;
+    }
+    if (step === 1) return files.length > 0;
+    if (step === 2) return labelList.length > 0;
     if (step === 3) return Number(values.budget) > 0 && Number(values.reward) > 0;
     return true;
   };
 
-  if (submitted) {
+  const pushProgress = (label: string) =>
+    setProgress((prev) => [...prev, { label, status: "running" }]);
+  const settleProgress = (status: "done" | "error") =>
+    setProgress((prev) =>
+      prev.map((item, index) =>
+        index === prev.length - 1 ? { ...item, status } : item,
+      ),
+    );
+
+  async function submit() {
+    setRunning(true);
+    setError(null);
+    setProgress([]);
+    try {
+      let projectId = values.projectId;
+      if (!projectId) {
+        pushProgress(`Create project “${values.projectName.trim()}”`);
+        const project = await client.post(projectSchema, platformPaths.projects(), {
+          body: {
+            name: values.projectName.trim(),
+            data_rights: values.dataRights.trim() || undefined,
+            retention_policy: values.retention.trim() || undefined,
+          },
+        });
+        projectId = project.id;
+        settleProgress("done");
+      }
+
+      const assetIds: string[] = [];
+      for (const file of files) {
+        pushProgress(`Upload ${file.name}`);
+        const { asset } = await uploadAsset(client, {
+          projectId,
+          modality: values.modality,
+          file,
+        });
+        assetIds.push(asset.id);
+        settleProgress("done");
+      }
+
+      const schema = modalitySchemaFor(values.modality);
+      pushProgress(`Create job “${values.title.trim()}”`);
+      const job = await client.post(jobSchema, platformPaths.jobs(), {
+        body: {
+          project_id: projectId,
+          title: values.title.trim(),
+          description: values.description.trim() || undefined,
+          modality: values.modality,
+          reward_per_task: Number(values.reward),
+          budget: Number(values.budget),
+          deadline: values.deadline
+            ? new Date(`${values.deadline}T23:59:59Z`).toISOString()
+            : undefined,
+          rubric: values.policy.trim()
+            ? { acceptance_policy: values.policy.trim() }
+            : undefined,
+          label_list: labelList,
+          schema_version_id: schema.id,
+        },
+      });
+      settleProgress("done");
+
+      pushProgress(`Generate ${assetIds.length} task(s)`);
+      await client.post(z.array(taskSchema), platformPaths.jobTasks(job.id), {
+        body: { asset_ids: assetIds },
+        idempotencyKey: `tasks:${job.id}`,
+      });
+      settleProgress("done");
+
+      pushProgress("Publish job");
+      const published = await client.post(jobSchema, platformPaths.publishJob(job.id), {
+        idempotencyKey: `publish:${job.id}`,
+      });
+      settleProgress("done");
+
+      setCreatedJob(published);
+    } catch (cause) {
+      settleProgress("error");
+      setError(cause instanceof PlatformError ? cause : new PlatformError("SERVER", "Something went wrong."));
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  if (createdJob) {
     return (
-      <div className="rounded-xl border border-pending-line bg-pending-bg p-6">
+      <div className="rounded-xl border border-success-line bg-success-bg p-6">
         <div className="flex items-start gap-3">
-          <Info aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-pending-fg" />
+          <Check aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-success-fg" />
           <div>
-            <h2 className="font-display text-title text-pending-fg">
-              Job not created
-            </h2>
-            <p className="mt-2 max-w-xl text-body-sm text-pending-fg">
-              The form was validated, but this build has no platform API
-              connected, so no job was created, funded or published. Set{" "}
-              <code className="font-mono">NEXT_PUBLIC_API_BASE_URL</code> to
-              connect the platform and make this step real.
+            <h2 className="font-display text-title text-success-fg">Job published</h2>
+            <p className="mt-2 max-w-xl text-body-sm text-success-fg">
+              “{createdJob.title}” is live. {files.length} task
+              {files.length === 1 ? "" : "s"} are now claimable by contributors.
             </p>
-            <Button
-              className="mt-5"
-              variant="secondary"
-              onClick={() => {
-                setSubmitted(false);
-                setStep(0);
-              }}
-            >
-              Edit the draft
-            </Button>
+            <p className="mt-3 font-mono text-caption text-success-fg/80">
+              {createdJob.id}
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <ButtonLink href={`/workspace/buyer/jobs/${createdJob.id}`}>
+                Open job
+              </ButtonLink>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setCreatedJob(null);
+                  setValues(initialValues);
+                  setFiles([]);
+                  setProgress([]);
+                  setStep(0);
+                }}
+              >
+                Create another
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -91,7 +259,7 @@ export function NewJobWizard() {
               <li key={item.id}>
                 <button
                   type="button"
-                  onClick={() => index <= step && setStep(index)}
+                  onClick={() => index <= step && !running && setStep(index)}
                   aria-current={active ? "step" : undefined}
                   className={cn(
                     "flex w-full items-center gap-3 whitespace-nowrap rounded-md px-3 py-2.5 text-left text-body-sm transition-colors",
@@ -123,82 +291,163 @@ export function NewJobWizard() {
         </ol>
       </nav>
 
-      {/* Step body */}
-      <div className="min-w-0 lg:col-span-9">
+      <div className="min-w-0 lg:col-span-7">
         <div className="rounded-xl border border-line bg-surface p-6 sm:p-8">
           {step === 0 ? (
             <div className="flex flex-col gap-5">
-              <h2 className="font-display text-title text-ink">Project basics</h2>
+              <h2 className="font-display text-title text-ink">Project and job</h2>
+              <SelectField
+                id="projectId"
+                label="Project"
+                value={values.projectId}
+                onChange={set("projectId")}
+                hint="A job belongs to a project. Reuse one, or create a new project."
+              >
+                <option value="">Create a new project…</option>
+                {(projectsQuery.status === "ready" ? projectsQuery.data : []).map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </SelectField>
+
+              {values.projectId === "" ? (
+                <>
+                  <TextField
+                    id="projectName"
+                    label="Project name"
+                    required
+                    value={values.projectName}
+                    onChange={set("projectName")}
+                    placeholder="Robotics manipulation — Q4 intake"
+                  />
+                  <TextAreaField
+                    id="dataRights"
+                    label="Data rights"
+                    value={values.dataRights}
+                    onChange={set("dataRights")}
+                    placeholder="Describe the source of the data, who holds the rights, and any restrictions on its use."
+                  />
+                  <TextField
+                    id="retention"
+                    label="Retention policy"
+                    value={values.retention}
+                    onChange={set("retention")}
+                    placeholder="e.g. Delete source media 90 days after export"
+                  />
+                </>
+              ) : (
+                <p className="text-caption text-ink-3">
+                  Using an existing project. Its data-rights declaration is already recorded.
+                </p>
+              )}
+
               <TextField
                 id="title"
-                label="Project title"
+                label="Job title"
                 required
                 value={values.title}
                 onChange={set("title")}
-                placeholder="Pick-and-place failure events"
+                placeholder="Pick-and-place failure clips"
+              />
+              <TextAreaField
+                id="description"
+                label="Description"
+                rows={3}
+                value={values.description}
+                onChange={set("description")}
+                placeholder="What should contributors annotate, and what counts as an acceptable label?"
               />
               <SelectField
                 id="modality"
                 label="Modality"
                 value={values.modality}
-                onChange={set("modality")}
-                hint="Only video modalities are supported in the current schema."
+                onChange={setModality}
+                hint="The modality decides the annotation schema and the media accepted."
               >
-                <option value="egocentric_video">Egocentric video</option>
-                <option value="third_person_video">Third-person video</option>
+                <option value="video">Video — action segments</option>
+                <option value="image">Image — bounding boxes</option>
               </SelectField>
             </div>
           ) : null}
 
           {step === 1 ? (
             <div className="flex flex-col gap-5">
-              <h2 className="font-display text-title text-ink">Data rights</h2>
+              <h2 className="font-display text-title text-ink">Media</h2>
               <div className="flex items-start gap-2.5 rounded-lg border border-info-line bg-info-bg p-4">
                 <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-info-fg" />
                 <p className="text-caption text-info-fg">
-                  You must confirm lawful authority to process this dataset and
-                  to share it with authorized contributors and reviewers. This
-                  declaration is required before a job can be published.
+                  Files are uploaded to object storage when you publish, and each
+                  becomes one task. {values.modality === "video" ? "Video" : "Image"}{" "}
+                  files only.
                 </p>
               </div>
-              <TextAreaField
-                id="rights"
-                label="Rights declaration"
-                required
-                value={values.rights}
-                onChange={set("rights")}
-                placeholder="Describe the source of the footage, who holds the rights, and any restrictions on its use."
+              <input
+                type="file"
+                multiple
+                accept={values.modality === "image" ? "image/*" : "video/*"}
+                onChange={(event) => {
+                  const picked = Array.from(event.target.files ?? []);
+                  setFiles((prev) => [...prev, ...picked]);
+                  event.target.value = "";
+                }}
+                className="block w-full cursor-pointer rounded-md border border-dashed border-line-strong bg-canvas px-4 py-6 text-body-sm text-ink-3 file:mr-4 file:rounded-md file:border-0 file:bg-surface file:px-3.5 file:py-2 file:text-body-sm file:font-medium file:text-ink hover:border-ink-4"
               />
+              {files.length > 0 ? (
+                <ul className="divide-y divide-line rounded-lg border border-line">
+                  {files.map((file, index) => (
+                    <li
+                      key={`${file.name}-${index}`}
+                      className="flex items-center justify-between gap-3 px-4 py-2.5"
+                    >
+                      <span className="min-w-0 truncate text-body-sm text-ink">
+                        {file.name}
+                      </span>
+                      <span className="flex items-center gap-3">
+                        <span className="text-caption text-ink-4">
+                          {(file.size / 1_048_576).toFixed(1)} MB
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setFiles((prev) => prev.filter((_, i) => i !== index))
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-caption text-ink-4">
+                  No files selected yet. At least one file is required.
+                </p>
+              )}
             </div>
           ) : null}
 
           {step === 2 ? (
             <div className="flex flex-col gap-5">
-              <h2 className="font-display text-title text-ink">
-                Schema and rubric
-              </h2>
-              <SelectField
-                id="schemaVersion"
-                label="Schema"
-                value={values.schemaVersion}
-                onChange={set("schemaVersion")}
-              >
-                <option value="action-segments-v1">action-segments-v1</option>
-              </SelectField>
+              <h2 className="font-display text-title text-ink">Schema and rubric</h2>
               <div className="rounded-lg border border-line bg-canvas p-4">
                 <p className="text-caption text-ink-3">
-                  <span className="font-medium text-ink">Action labels:</span>{" "}
-                  reach, grasp, lift, place, inspect, recover, other
+                  <span className="font-medium text-ink">Schema:</span>{" "}
+                  {modalitySchemaFor(values.modality).name}
                 </p>
                 <p className="mt-2 text-caption text-ink-3">
-                  <span className="font-medium text-ink">Outcomes:</span> success,
-                  partial, failure, unknown
-                </p>
-                <p className="mt-2 text-caption text-ink-3">
-                  <span className="font-medium text-ink">Failure reasons:</span>{" "}
-                  slip, collision, occlusion, wrong_target, dropped_object, other
+                  Contributors annotate with this schema; it is fixed per modality.
                 </p>
               </div>
+              <TextField
+                id="labels"
+                label="Label list"
+                required
+                value={values.labels}
+                onChange={set("labels")}
+                hint="Comma-separated. Class labels contributors may use."
+              />
               <TextAreaField
                 id="policy"
                 label="Acceptance policy"
@@ -211,9 +460,7 @@ export function NewJobWizard() {
 
           {step === 3 ? (
             <div className="flex flex-col gap-5">
-              <h2 className="font-display text-title text-ink">
-                Budget and deadline
-              </h2>
+              <h2 className="font-display text-title text-ink">Budget and deadline</h2>
               <div className="grid gap-5 sm:grid-cols-2">
                 <TextField
                   id="budget"
@@ -244,42 +491,69 @@ export function NewJobWizard() {
                 onChange={set("deadline")}
               />
               <p className="text-caption text-ink-3">
-                Funding is verified before tasks become payable. A funded job is
-                the precondition for any settlement.
+                The budget and per-task reward are recorded on the job. Settlement
+                against accepted work is handled by the platform’s review and
+                settlement flow.
               </p>
             </div>
           ) : null}
 
           {step === 4 ? (
             <div className="flex flex-col gap-5">
-              <h2 className="font-display text-title text-ink">Review</h2>
-              <dl className="overflow-hidden rounded-lg border border-line">
+              <h2 className="font-display text-title text-ink">Review and publish</h2>
+              <dl className="divide-y divide-line rounded-lg border border-line">
                 {[
-                  ["Title", values.title || "—"],
-                  ["Modality", values.modality === "egocentric_video" ? "Egocentric video" : "Third-person video"],
-                  ["Schema", values.schemaVersion],
-                  ["Budget", values.budget ? `$${values.budget}` : "—"],
-                  ["Reward / task", values.reward ? `$${values.reward}` : "—"],
-                  ["Rights declared", values.rights.trim() ? "Yes" : "No"],
-                ].map(([label, value], index) => (
+                  ["Project", values.projectId ? "Existing project" : values.projectName.trim()],
+                  ["Job title", values.title.trim()],
+                  ["Modality", values.modality],
+                  ["Schema", modalitySchemaFor(values.modality).name],
+                  ["Files", `${files.length}`],
+                  ["Budget", `$${values.budget}`],
+                  ["Reward / task", `$${values.reward}`],
+                  ["Deadline", values.deadline || "—"],
+                  ["Labels", labelList.join(", ")],
+                ].map(([label, value]) => (
                   <div
                     key={label}
-                    className={cn(
-                      "flex items-center justify-between gap-4 px-4 py-3",
-                      index > 0 && "border-t border-line",
-                    )}
+                    className="flex items-center justify-between gap-4 px-4 py-3"
                   >
                     <dt className="text-body-sm text-ink-3">{label}</dt>
-                    <dd className="text-body-sm font-medium text-ink">{value}</dd>
+                    <dd className="max-w-[60%] truncate text-right text-body-sm font-medium text-ink">
+                      {value}
+                    </dd>
                   </div>
                 ))}
               </dl>
               <div className="flex items-center gap-2">
-                <Badge tone="neutral">Draft</Badge>
+                <Badge tone="neutral">Draft → published</Badge>
                 <span className="text-caption text-ink-4">
-                  Publishing and funding require a connected platform API.
+                  Gold tasks are created by an admin and are not available here.
                 </span>
               </div>
+              {error ? <InlineError error={error} /> : null}
+              {progress.length > 0 ? (
+                <ol className="space-y-1.5 rounded-lg border border-line bg-canvas p-4">
+                  {progress.map((item, index) => (
+                    <li
+                      key={`${item.label}-${index}`}
+                      className="flex items-center gap-2 text-caption text-ink-3"
+                    >
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "h-2 w-2 rounded-full",
+                          item.status === "done"
+                            ? "bg-success-fg"
+                            : item.status === "error"
+                              ? "bg-danger-fg"
+                              : "animate-pulse bg-pending-fg",
+                        )}
+                      />
+                      {item.label}
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
             </div>
           ) : null}
 
@@ -288,7 +562,7 @@ export function NewJobWizard() {
               type="button"
               variant="ghost"
               onClick={() => setStep((s) => Math.max(0, s - 1))}
-              disabled={step === 0}
+              disabled={step === 0 || running}
             >
               Back
             </Button>
@@ -296,17 +570,25 @@ export function NewJobWizard() {
               <Button
                 type="button"
                 onClick={() => setStep((s) => s + 1)}
-                disabled={!canAdvance()}
+                disabled={!canAdvance() || running}
               >
                 Continue
               </Button>
             ) : (
-              <Button type="button" onClick={() => setSubmitted(true)}>
-                Create job
+              <Button type="button" onClick={() => void submit()} disabled={running}>
+                {running ? "Publishing…" : "Create and publish job"}
               </Button>
             )}
           </div>
         </div>
+
+        <p className="mt-4 text-caption text-ink-4">
+          Need the API? See{" "}
+          <Link href="/workspace/buyer" className="underline hover:text-ink-2">
+            your dashboard
+          </Link>{" "}
+          for existing jobs.
+        </p>
       </div>
     </div>
   );

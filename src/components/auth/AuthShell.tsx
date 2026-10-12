@@ -58,8 +58,8 @@ export function AuthShell({
                 <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-info-line bg-info-bg px-3.5 py-2.5">
                   <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-info-fg" />
                   <p className="text-caption text-info-fg">
-                    Preview mode — no authentication service is connected in this
-                    build. No account is created and no credentials are stored.
+                    Sign-in is handled by Privy. Your session is issued here and
+                    verified by the platform API on every request.
                   </p>
                 </div>
                 {children}

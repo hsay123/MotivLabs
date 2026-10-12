@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { readActiveTask, readDraftSegments, readTask } from "@/lib/api/read";
 import { AnnotationWorkspace } from "@/components/product/AnnotationWorkspace";
 import { WorkspaceHeader } from "@/components/product/WorkspaceHeader";
 
@@ -13,18 +11,6 @@ export default async function TaskWorkspacePage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const [{ data: task }, { data: activeTask }, { data: draft }] = await Promise.all([
-    readTask(taskId),
-    readActiveTask(),
-    readDraftSegments(),
-  ]);
-
-  if (!task) notFound();
-
-  // In preview mode the sample task is used for the live workspace so the
-  // screen is always demonstrable; the banner states it is sample data.
-  const workspaceTask = task ?? activeTask;
-  const initialSegments = task.id === activeTask.id ? draft : [];
 
   return (
     <>
@@ -32,17 +18,19 @@ export default async function TaskWorkspacePage({
         <Link href="/workspace/contributor" className="hover:text-ink">
           Tasks
         </Link>
-        <span aria-hidden className="mx-2">/</span>
-        <span className="font-mono">{workspaceTask.id}</span>
+        <span aria-hidden className="mx-2">
+          /
+        </span>
+        <span className="font-mono">{taskId}</span>
       </nav>
 
       <WorkspaceHeader
-        eyebrow={`${workspaceTask.jobId} · ${workspaceTask.difficulty}`}
+        eyebrow="Contributor · workspace"
         title="Annotation workspace"
-        description="Label actions and failures against action-segments-v1. Segment boundaries are placed against the clip timecode."
+        description="Annotate against the schema for this task's modality. Open work is saved as a draft; submitting creates an immutable version."
       />
 
-      <AnnotationWorkspace task={workspaceTask} initialSegments={initialSegments} />
+      <AnnotationWorkspace taskId={taskId} />
     </>
   );
 }

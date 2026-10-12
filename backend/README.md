@@ -31,8 +31,8 @@ npx supabase db push --db-url "postgresql://postgres:<password>@<host>:5432/post
 npm run seed
 
 # 5. Start the dev server
-npm run dev
-# Runs on http://localhost:3000
+PORT=3010 npm run dev
+# Runs on http://localhost:3010 (the unrelated trapnet-dashboard container owns :3001)
 ```
 
 ---
@@ -41,7 +41,7 @@ npm run dev
 
 | Command | Description |
 |---|---|
-| `npm run dev` | Start dev server (port 3000) |
+| `npm run dev` | Start dev server (default port 3000; `PORT` overrides, this repo uses 3010) |
 | `npm run build` | Build for production |
 | `npm run start` | Start production server |
 | `npm run typecheck` | TypeScript type check |
@@ -62,7 +62,7 @@ Key variables:
 | `SUPABASE_URL` | ✅ | Your Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Service-role key (never expose to frontend) |
 | `SUPABASE_STORAGE_BUCKET` | Optional | Private bucket for job media (default: `media`) |
-| `FRONTEND_ORIGIN` | ✅ | Frontend origin for CORS (e.g. `http://localhost:3001`) |
+| `FRONTEND_ORIGIN` | ✅ | Frontend origin for CORS (e.g. `https://localhost:3000`) |
 | `PRIVY_APP_ID` | Production | Privy app ID for token verification |
 | `PRIVY_APP_SECRET` | Production | Privy app secret |
 | `DEV_AUTH_BYPASS` | Dev only | Set `true` to skip Privy; use `x-dev-user-id` header |
