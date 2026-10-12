@@ -35,31 +35,17 @@ Created via the Storage API on `sfebambrdcfqrdmetflw`: `POST /storage/v1/bucket 
 
 ---
 
-## B3 (BLOCKER for automated E2E) — Privy login cannot be automated
+## B3 — Privy login cannot be automated — ✅ WORKAROUND IN PLACE (one capture)
 
-**Update 2026-10-12:** the Privy app credentials are verified working (`getAppSettings()` OK), but **test
-credentials are not enabled** for this app (`getTestAccessToken()` → *Test credentials not enabled*), so the
-server cannot mint tokens. A human browser login is required — the user will sign in with four real Privy
-accounts and sessions are then captured for automated runs.
+Privy test credentials remain disabled for this app, so the server cannot mint tokens for automated
+runs. Sessions are instead captured once per role with the headed flow:
+`node scripts/capture-sessions.mjs <role>` — the user logs in in the opened browser, and the script
+saves `playwright/.auth/<role>.json` (gitignored).
 
-There is no `TEST_ACCOUNTS` and no saved `playwright/.auth/*.json`, and Privy email login needs an OTP that a
-human must receive. Without one of the following, Phase 4 (S1–S7) cannot authenticate and must be reported as
-blocked rather than faked.
-
-**Unblock — pick ONE:**
-
-Option A (best) — Privy dashboard **test accounts**:
-- Enable test accounts in the Privy dashboard.
-- Create four accounts and add to `backend/.env.test.local` (gitignored):
-  ```
-  TEST_ACCOUNTS={"buyer":"you+buyer@…","contributor":"you+contrib@…","reviewer":"you+reviewer@…","admin":"you+admin@…"}
-  PRIVY_TEST_OTP=<static code shown in the dashboard>
-  ```
-
-Option B — capture sessions once, headed:
-- Start backend (3001) and frontend (3000).
-- `node scripts/capture-sessions.mjs` → log in once per role in the opened browser.
-- Saves `playwright/.auth/<role>.json` (gitignored).
+This project uses a **single real account whose role is promoted per slice** with
+`backend/scripts/set-role.ts` (`buyer` → `reviewer` → `admin`), so **one capture is enough for every
+slice** — no four separate accounts required. 2026-10-12: contributor session captured; S1 green
+(5/5 Playwright tests).
 
 ## B4 — Privy dashboard allowed origin
 

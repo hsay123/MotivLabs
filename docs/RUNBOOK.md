@@ -94,7 +94,11 @@ node scripts/db-assert.mjs counts           # per-table row counts (service role
 node scripts/db-assert.mjs user <email>
 node scripts/capture-sessions.mjs buyer     # headed; saves playwright/.auth/buyer.json
 ```
-E2E (Playwright) and the S1–S7 slices are **not yet wired** — see the report.
+E2E (Playwright, real stack, `DEV_AUTH_BYPASS=false`):
+```bash
+node scripts/capture-sessions.mjs <role>      # headed; saves playwright/.auth/<role>.json (gitignored)
+npx playwright test e2e/s1-auth-roles.spec.ts # S1 — needs a captured contributor session
+```
 
 ## 7. What is mock vs real
 | Thing | State |

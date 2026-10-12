@@ -118,11 +118,25 @@ switch is requested anymore); all checks **PASS**.
 
 ## S1 — Auth & roles
 
-Status: **BLOCKED on a human Privy login** (B3 — test credentials not enabled; B4 — `https://localhost:3000`
-must be in the Privy allowed origins). DB schema is applied, token verification is ready (credentials
-verified above; `lib/auth/verifyToken.ts` fetches the app's SPKI verification key via the SDK, so no
-`PRIVY_VERIFICATION_KEY` is required). The first real login creates the first `users` row (role
-`contributor`), after which roles are set with `backend/scripts/set-role.ts`.
+Status: **GREEN** (2026-10-12). A real Privy session (contributor) was captured to
+`playwright/.auth/contributor.json` (gitignored) via `scripts/capture-sessions.mjs`, then driven by the
+Playwright spec `e2e/s1-auth-roles.spec.ts` against the real stack (`DEV_AUTH_BYPASS=false`):
+
+```
+$ npx playwright test e2e/s1-auth-roles.spec.ts
+Running 5 tests using 1 worker
+  ✓ 1  sends /workspace visitors to /login                     (1.2s)
+  ✓ 2  resolves the real profile and lands on the contributor workspace  (2.7s)
+  ✓ 3  session persists across a reload                        (2.8s)
+  ✓ 4  role gate: contributor cannot open the buyer workspace  (1.7s)
+  ✓ 5  sign out ends the session and returns to /login         (2.5s)
+5 passed (11.4s)
+```
+
+Evidence from the run: the workspace resolves the live profile from `GET /api/me` — the shell renders
+`yashlandge235@gmail.com · contributor`; role gating is real (a contributor is bounced out of
+`/workspace/buyer`); sign-out returns to `/login`. Roles for later slices are set on the same real
+account with `backend/scripts/set-role.ts`.
 
 ## S2 — Buyer project + upload + tasks + publish
 
