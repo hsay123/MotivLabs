@@ -12,10 +12,16 @@
 
 ## 1. Prerequisites (one-time)
 1. **Database migrations — APPLIED (2026-10-12)** on `sfebambrdcfqrdmetflw` via the Supabase MCP server
-   (`apply_migration` 001–005, then `notify pgrst, 'reload schema';`). To (re)apply on another project:
+   (`apply_migration` 001–006, then `notify pgrst, 'reload schema';`). To (re)apply on another project:
    the one-shot bundle is `backend/supabase/all_migrations.sql` — paste it in the Supabase SQL editor, or
    `cd backend && psql "$DATABASE_URL" -f supabase/all_migrations.sql`.
-2. **Create a private Storage bucket named `media`** (Supabase → Storage → New bucket, public off).
+   Migration **006_security_hardening** revokes the default `anon`/`authenticated` grants on the public
+   schema, pins the trigger function's `search_path`, closes the `rls_auto_enable` RPC surface, moves
+   `pg_trgm` into `extensions`, and sets the `media` bucket limits below. Re-check it after any DB restore.
+2. **Create a private Storage bucket named `media`** (Supabase → Storage → New bucket, public off) with
+   `file_size_limit = 52428800` (50 MiB) and
+   `allowed_mime_types = {image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime}` —
+   applied by 006. Effective ceiling is `min(bucket, project global)`.
 3. **Privy dashboard:** add `https://localhost:3000` to allowed origins; enable email login.
    Client config uses `supportedChains: [Monad testnet]` with **no `defaultChain`** so external
    wallets are not asked to switch chain during login (some wallets reject an unsupported testnet
@@ -105,8 +111,8 @@ npx playwright test e2e/s1-auth-roles.spec.ts # S1 — needs a captured contribu
 |---|---|
 | Privy token verification | **Real** (ES256, issuer/audience/expiry) — unit-tested locally |
 | Projects / assets / tasks / job lifecycle / roles / admin | **Real** code, DB-backed |
-| Database schema | **Applied** on `sfebambrdcfqrdmetflw` — rack 001–005, RLS on, no GRANTs (service-role only) |
-| Storage bucket | **Created** — private `media` bucket on `sfebambrdcfqrdmetflw` |
+| Database schema | **Applied** on `sfebambrdcfqrdmetflw` — migrations 001–006, RLS on every table, anon/authenticated revoked (service-role only) |
+| Storage bucket | **Created** — private `media` bucket; 50 MiB limit; PNG/JPEG/WebP + MP4/WebM/QuickTime only |
 | Settlement | **Mock** while `is_mock=true`; receipts must show "Mock settlement, no onchain transaction" |
-| Frontend product screens | Still render the labelled **interface preview**; `src/lib/api/platform.ts` is the real contract but the screens are not yet switched over |
+| Frontend product screens | **Real** — screens fetch the token-bound platform client (`src/lib/api/platform.ts`), no interface preview |
 | AI reviewer | Mock reviewer unless an AI key is configured |
