@@ -35,17 +35,28 @@ Created via the Storage API on `sfebambrdcfqrdmetflw`: `POST /storage/v1/bucket 
 
 ---
 
-## B3 — Privy login cannot be automated — ✅ WORKAROUND IN PLACE (one capture)
+## B3 — Privy login can now be automated — ✅ FULLY RESOLVED
 
-Privy test credentials remain disabled for this app, so the server cannot mint tokens for automated
-runs. Sessions are instead captured once per role with the headed flow:
-`node scripts/capture-sessions.mjs <role>` — the user logs in in the opened browser, and the script
-saves `playwright/.auth/<role>.json` (gitignored).
+Privy's email-OTP test credentials stay disabled, so the server cannot mint tokens. But the
+external-**wallet** path is fully automatable: `scripts/capture-session-auto.mjs <role>` announces a mock
+EIP-6963 wallet whose signatures are produced by a real local secp256k1 key (`viem`) — genuine
+signatures, real Privy session, no human in the loop. It saves `playwright/.auth/<role>.json`
+(gitignored) and verifies `/api/me` resolves before declaring success.
 
-This project uses a **single real account whose role is promoted per slice** with
-`backend/scripts/set-role.ts` (`buyer` → `reviewer` → `admin`), so **one capture is enough for every
-slice** — no four separate accounts required. 2026-10-12: contributor session captured; S1 green
-(5/5 Playwright tests).
+Each role gets its own wallet (`playwright/.auth/wallet-<role>.key`, gitignored, generated on first
+use), so buyer / contributor / reviewer / admin are four distinct real users. Promote each to its role
+the first time with `backend/scripts/set-role.ts` (now accepts email, wallet address, or Privy DID):
+
+```
+node scripts/capture-session-auto.mjs buyer   # prints the wallet address
+(cd backend && npx tsx scripts/set-role.ts 0x… buyer)
+```
+
+Re-run the capture for a role right before a browser run; the captured session is a real access token
+with a ~1h lifetime and Privy rotates refresh tokens, so a stale file lands on `/login`.
+
+The headed manual flow (`node scripts/capture-sessions.mjs <role>`) still works for a human's own
+account if needed. 2026-10-12: all four roles captured automatically; S1 green (5/5), S2 green (2/2).
 
 ## B4 — Privy dashboard allowed origin
 

@@ -118,29 +118,52 @@ switch is requested anymore); all checks **PASS**.
 
 ## S1 — Auth & roles
 
-Status: **GREEN** (2026-10-12). A real Privy session (contributor) was captured to
-`playwright/.auth/contributor.json` (gitignored) via `scripts/capture-sessions.mjs`, then driven by the
-Playwright spec `e2e/s1-auth-roles.spec.ts` against the real stack (`DEV_AUTH_BYPASS=false`):
+Status: **GREEN** (2026-10-12). Real Privy sessions are now captured **without manual interaction**:
+`scripts/capture-session-auto.mjs <role>` announces a mock EIP-6963 wallet whose signatures are produced
+by a local secp256k1 key via `viem` (real signatures → real Privy session), then saves
+`playwright/.auth/<role>.json` (gitignored). Four distinct wallet users exist — buyer / contributor /
+reviewer / admin — each promoted with `backend/scripts/set-role.ts <wallet-address> <role>`.
+
+`e2e/s1-auth-roles.spec.ts` against the real stack (`DEV_AUTH_BYPASS=false`):
 
 ```
 $ npx playwright test e2e/s1-auth-roles.spec.ts
 Running 5 tests using 1 worker
-  ✓ 1  sends /workspace visitors to /login                     (1.2s)
-  ✓ 2  resolves the real profile and lands on the contributor workspace  (2.7s)
-  ✓ 3  session persists across a reload                        (2.8s)
-  ✓ 4  role gate: contributor cannot open the buyer workspace  (1.7s)
-  ✓ 5  sign out ends the session and returns to /login         (2.5s)
-5 passed (11.4s)
+  ✓ 1  sends /workspace visitors to /login                              (1.1s)
+  ✓ 2  resolves the real profile and lands on the contributor workspace (2.5s)
+  ✓ 3  session persists across a reload                                 (2.5s)
+  ✓ 4  role gate: contributor cannot open the buyer workspace           (2.5s)
+  ✓ 5  sign out ends the session and returns to /login                  (2.5s)
+5 passed (11.1s)
 ```
 
-Evidence from the run: the workspace resolves the live profile from `GET /api/me` — the shell renders
-`yashlandge235@gmail.com · contributor`; role gating is real (a contributor is bounced out of
-`/workspace/buyer`); sign-out returns to `/login`. Roles for later slices are set on the same real
-account with `backend/scripts/set-role.ts`.
+Evidence: the workspace resolves the live profile from `GET /api/me` (the shell renders `… · contributor`);
+role gating is real (a contributor is bounced out of `/workspace/buyer`); sign-out returns to `/login`.
 
 ## S2 — Buyer project + upload + tasks + publish
 
-Status: NOT STARTED.
+Status: **GREEN** (2026-10-12). `e2e/s2-buyer-job.spec.ts` drives the real creation wizard with the buyer
+session and the `e2e/fixtures/sample.png` fixture (640×480), then proves ownership enforcement:
+
+```
+$ npx playwright test e2e/s2-buyer-job.spec.ts
+Running 2 tests using 1 worker
+  ✓ 1  publishes a job from real media and generates tasks   (90s budget)
+  ✓ 2  rejects a non-owner reading the buyer's job           403 FORBIDDEN
+2 passed
+```
+
+Persistence verified directly in Supabase (`execute_sql`, service role / MCP):
+
+| Row | Evidence |
+| --- | --- |
+| `projects` | `name = E2E robotics intake …`, `data_rights = "E2E-owned capture; buyer holds all rights…"`, `retention_policy` recorded, `buyer_id` = the buyer user |
+| `jobs` | `status = published`, `modality = image`, `reward_per_task = 5`, `budget = 100`, `label_list = [cup, red_block, blue_block, other]`, `schema_version_id = a0000000-…-0001` (image-boxes-v1) |
+| `tasks` | 1 row, `status = available`, `is_gold = false`, no lease |
+| `assets` | `modality = image`, real SHA-256 `content_hash = d76fa7fc…`, `width = 640`, `height = 480`, `object_key` under the project prefix |
+
+Ownership: `GET /api/jobs/{id}` with a contributor token → **403 `FORBIDDEN`** (`loadJobForActor`).
+
 
 ## S3 — Contributor claim / label / submit
 
