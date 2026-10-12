@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The backend is its own Next.js project with its own lint config.
+    "backend/**",
   ]),
 ]);
 
