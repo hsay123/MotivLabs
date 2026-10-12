@@ -51,9 +51,23 @@ const envSchema = z.object({
     .optional()
     .default("30")
     .transform((v) => parseInt(v, 10)),
-  // JobEscrow contract (required for real settlement)
-  JOB_ESCROW_ADDRESS: z.string().optional(),
+  // JobEscrow contract + settlement relayer (all three required for real
+  // settlement; with any missing, MockSettlementService stays in effect).
+  JOB_ESCROW_ADDRESS: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || /^0x[0-9a-fA-F]{40}$/.test(v),
+      "JOB_ESCROW_ADDRESS must be a 0x-prefixed address",
+    ),
   MONAD_RPC_URL: z.string().url().optional(),
+  SETTLEMENT_PRIVATE_KEY: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || /^0x[0-9a-fA-F]{64}$/.test(v),
+      "SETTLEMENT_PRIVATE_KEY must be a 32-byte 0x-prefixed private key",
+    ),
 });
 
 export type Env = z.infer<typeof envSchema>;

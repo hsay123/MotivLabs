@@ -79,6 +79,18 @@ export async function loadAcceptingReview(
   return data as unknown as { id: string; reviewer_type: ReviewerType };
 }
 
+/** Contributor payout address (null when the account has no wallet). */
+export async function loadUserWalletAddress(userId: string): Promise<string | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("users")
+    .select("wallet_address")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw HttpError.internal(`Failed to load payout address: ${error.message}`);
+  return (data?.wallet_address as string | null) ?? null;
+}
+
 /** Number of already-paid tasks in a job (for the budget guard). */
 export async function countPaidTasksInJob(jobId: string): Promise<number> {
   const supabase = getSupabase();

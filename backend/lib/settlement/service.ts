@@ -30,7 +30,9 @@ import {
   insertReceipt,
   loadAcceptingReview,
   loadReceiptRow,
+  loadUserWalletAddress,
 } from "@/lib/settlement/repository";
+import { createChainSettlementService } from "@/lib/settlement/chain";
 import { sumDecimalStrings, withinBudget } from "@/lib/settlement/money";
 import type {
   EarningsSummary,
@@ -51,11 +53,14 @@ export interface SettlementResult {
 }
 
 export interface SettlementRequest {
+  jobId: string;
   taskId: string;
   submissionId: string;
   annotationHash: string;
   policyHash: string;
   amount: string;
+  /** Contributor payout address; null blocks on-chain settlement. */
+  payeeAddress: string | null;
 }
 
 export interface SettlementService {
@@ -77,6 +82,20 @@ export class MockSettlementService implements SettlementService {
 }
 
 export const mockSettlementService = new MockSettlementService();
+
+/**
+ * Chain settlement when `JOB_ESCROW_ADDRESS` + `MONAD_RPC_URL` +
+ * `SETTLEMENT_PRIVATE_KEY` are all configured, otherwise the mock. Selected
+ * lazily (not at import time) so tests can inject their own service.
+ */
+let _defaultService: SettlementService | null = null;
+
+export function getDefaultSettlementService(): SettlementService {
+  if (!_defaultService) {
+    _defaultService = createChainSettlementService() ?? mockSettlementService;
+  }
+  return _defaultService;
+}
 
 // ------------------------------------------------------------
 // Settlement of an accepted task
@@ -103,7 +122,7 @@ export interface SettleAcceptedTaskInput {
 export async function settleAcceptedTask(
   input: SettleAcceptedTaskInput,
 ): Promise<Receipt> {
-  const service = input.settlementService ?? mockSettlementService;
+  const service = input.settlementService ?? getDefaultSettlementService();
 
   const submission = await loadSubmission(input.submissionId);
   if (submission.task_id !== input.taskId) {
@@ -129,11 +148,13 @@ export async function settleAcceptedTask(
   const policyHash = job.policy_hash ?? hashCanonicalJson(job.rubric ?? {});
 
   const settlement = await service.settle({
+    jobId: task.job_id,
     taskId: input.taskId,
     submissionId: input.submissionId,
     annotationHash,
     policyHash,
     amount: job.reward_per_task,
+    payeeAddress: await loadUserWalletAddress(submission.contributor_id),
   });
 
   assertLegalTransition("accepted", "paid");
