@@ -12,7 +12,7 @@ projects. No secret values are written here.
 | **Backend** | `backend/`, API-only Next.js app | Vercel — `zeno-api` |
 | **Database + Storage** | Supabase project `sfebambrdcfqrdmetflw` | managed (shared with dev) |
 | **Auth** | Privy app | managed |
-| **Settlement** | `contracts/JobEscrow.sol` | Monad testnet (chain 10143), not yet deployed |
+| **Settlement** | `contracts/JobEscrow.sol` | Monad testnet (chain 10143), **DEPLOYED** at `0x4A8E371E89cF9989682Ed0bD5cD1cCa457281fE8` |
 
 URLs:
 
@@ -103,7 +103,7 @@ Deployer / relayer wallet (key only in git-ignored `contracts/.env` and
 `backend/.env.local`):
 
 ```
-0x8084a4eD8849B7B12E57f9e443ECe05E89838767   (balance 0 MON)
+0x8084a4eD8849B7B12E57f9e443ECe05E89838767   (deployer/relayer, ~9.9 MON remaining)
 ```
 
 1. Fund it at **https://faucet.monad.xyz**.
