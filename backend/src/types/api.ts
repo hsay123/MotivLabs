@@ -170,6 +170,8 @@ export interface Task {
   is_gold: boolean;
   lease_owner: string | null;
   lease_expiry: string | null;
+  job_title?: string;
+  label_list?: string[];
   // signed_media_url: only present on GET /api/tasks/:id
   signed_media_url?: string;
   created_at: string;

@@ -38,7 +38,7 @@ test.describe("contributor session (real Privy session)", () => {
 
     // Live session strip proves /api/me answered with the real session.
     await expect(
-      page.getByText("Signed in and verified by the platform API"),
+      page.getByText("Signed in with a platform-verified session"),
     ).toBeVisible();
     // The account line renders the real profile from /api/me: email/address + role.
     await expect(page.getByText(/· contributor$/)).toBeVisible();

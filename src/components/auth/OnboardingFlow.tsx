@@ -168,7 +168,7 @@ export function OnboardingFlow() {
                 Enter {active.label.toLowerCase()} workspace
               </Button>
               <p className="mt-3 text-caption text-ink-4">
-                Opens the workspace with clearly-labelled sample data.
+                Opens your live workspace, connected to the platform API.
               </p>
             </>
           ) : (

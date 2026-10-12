@@ -1,17 +1,19 @@
 /**
  * POST /api/jobs/{id}/tasks – create tasks for a draft job from asset ids
  * (owner buyer or admin).
+ * GET  /api/jobs/{id}/tasks – list a job's tasks (owner buyer or admin).
  *
  * Gold tasks (with a reference `gold_answer`) are admin-only: they are the
  * hidden ground truth used for contributor scoring, so a buyer must not see or
- * set them.
+ * set them. `gold_answer` is never selected by either handler.
  */
 
 import type { NextRequest } from "next/server";
-import { created, withErrorHandler } from "@/lib/api/response";
+import { created, ok, withErrorHandler } from "@/lib/api/response";
 import { withCors, corsOptions } from "@/lib/api/cors";
 import { HttpError } from "@/lib/api/errors";
 import { readJson } from "@/lib/api/request";
+import { paginated, parsePagination } from "@/lib/api/pagination";
 import { requireRole } from "@/lib/auth/requireRole";
 import { getSupabase } from "@/lib/db/supabase";
 import { loadJobForActor } from "@/lib/jobs/repository";
@@ -26,6 +28,34 @@ import type { Task } from "@/src/types/api";
 
 export async function OPTIONS() {
   return corsOptions();
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  return withCors(
+    await withErrorHandler(async () => {
+      const user = await requireRole(req, "buyer", "admin");
+      const { id } = await params;
+
+      // Ownership is enforced here: a non-owner buyer or a reviewer sees 404.
+      await loadJobForActor(id, user);
+
+      const page = parsePagination(req.nextUrl.searchParams);
+      const supabase = getSupabase();
+      const { data, error, count } = await supabase
+        .from("tasks")
+        .select(TASK_PUBLIC_COLUMNS, { count: "exact" })
+        .eq("job_id", id)
+        .order("created_at", { ascending: true })
+        .range(page.from, page.to);
+      if (error) throw HttpError.internal(`Failed to list tasks: ${error.message}`);
+
+      const items = (data ?? []).map((row) => toTask(row as TaskRow));
+      return ok(paginated<Task>(items, count ?? items.length, page));
+    }),
+  );
 }
 
 export async function POST(

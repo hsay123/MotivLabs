@@ -149,8 +149,8 @@ export function ProductShell({ children }: { children: ReactNode }) {
         <Container size="wide" className="flex items-center gap-2.5 py-2">
           <Info aria-hidden className="h-3.5 w-3.5 shrink-0 text-info-fg" />
           <p className="text-caption text-info-fg">
-            Signed in and verified by the platform API. Screens still showing
-            sample records are labelled individually until they are wired.
+            Signed in with a platform-verified session. Every workspace screen
+            reads live data from the platform API.
           </p>
         </Container>
       </div>

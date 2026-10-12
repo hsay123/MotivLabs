@@ -264,6 +264,71 @@ export async function saveDraftPayload(args: {
   return { task_id: task.id, saved_at: savedAt };
 }
 
+/**
+ * Load the contributor's in-progress work for a task: the saved draft if one
+ * exists, otherwise the payload of their most recent submission (so a task
+ * returned for revision can be corrected in place). Returns `null` payload when
+ * the contributor has neither. Authorized only for the lease holder or a prior
+ * submitter — never exposes another contributor's work or any gold answer.
+ */
+export async function loadWorkPayload(args: {
+  taskId: string;
+  contributorId: string;
+}): Promise<{
+  payload: AnnotationPayload | null;
+  saved_at: string | null;
+  source: "draft" | "submission" | null;
+}> {
+  const task = await loadTaskWorkRow(args.taskId);
+
+  const leasedToMe =
+    task.lease_owner === args.contributorId && !isLeaseExpired(task.lease_expiry);
+  const prior = await hasPriorSubmission(task.id, args.contributorId);
+  if (!leasedToMe && !prior) {
+    throw HttpError.forbidden("You do not hold this task");
+  }
+
+  const supabase = getSupabase();
+
+  const { data: draft, error: draftError } = await supabase
+    .from("task_drafts")
+    .select("payload, updated_at")
+    .eq("task_id", task.id)
+    .eq("contributor_id", args.contributorId)
+    .maybeSingle();
+  if (draftError) {
+    throw HttpError.internal(`Failed to load draft: ${draftError.message}`);
+  }
+  if (draft) {
+    return {
+      payload: draft.payload as AnnotationPayload,
+      saved_at: (draft.updated_at as string) ?? null,
+      source: "draft",
+    };
+  }
+
+  const { data: submission, error: submissionError } = await supabase
+    .from("submissions")
+    .select("payload, submitted_at")
+    .eq("task_id", task.id)
+    .eq("contributor_id", args.contributorId)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (submissionError) {
+    throw HttpError.internal(`Failed to load submission: ${submissionError.message}`);
+  }
+  if (submission) {
+    return {
+      payload: submission.payload as AnnotationPayload,
+      saved_at: (submission.submitted_at as string) ?? null,
+      source: "submission",
+    };
+  }
+
+  return { payload: null, saved_at: null, source: null };
+}
+
 async function deleteDraft(taskId: string): Promise<void> {
   const supabase = getSupabase();
   const { error } = await supabase

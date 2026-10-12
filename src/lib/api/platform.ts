@@ -34,6 +34,46 @@ export const reviewerTypeSchema = z.enum(["code", "ai", "human"]);
 export const decisionSchema = z.enum(["accept", "revise", "reject"]);
 export const appealStatusSchema = z.enum(["open", "accepted", "rejected"]);
 
+/** Annotation payloads, mirroring backend `lib/validation/payloads.ts`. */
+export const boundingBoxSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+  class: z.string(),
+  confidence: z.number().optional(),
+});
+
+export const actionSegmentSchema = z.object({
+  start_ms: z.number(),
+  end_ms: z.number(),
+  action_label: z.string(),
+  object: z.string().optional(),
+  outcome: z.string(),
+  failure_reason: z.string().optional(),
+  confidence: z.number(),
+});
+
+export const imageBoxesPayloadSchema = z.object({
+  task_id: z.string(),
+  asset_id: z.string(),
+  schema_version: z.literal("image-boxes-v1"),
+  boxes: z.array(boundingBoxSchema),
+  answers: z.record(z.string(), z.string()).optional(),
+});
+
+export const actionSegmentsPayloadSchema = z.object({
+  task_id: z.string(),
+  asset_id: z.string(),
+  schema_version: z.literal("action-segments-v1"),
+  segments: z.array(actionSegmentSchema),
+});
+
+export const annotationPayloadSchema = z.discriminatedUnion("schema_version", [
+  imageBoxesPayloadSchema,
+  actionSegmentsPayloadSchema,
+]);
+
 export const meProfileSchema = z.object({
   qualification_passed: z.boolean(),
   tasks_completed: z.number(),
@@ -98,6 +138,8 @@ export const taskSchema = z.object({
   is_gold: z.boolean(),
   lease_owner: z.string().nullable(),
   lease_expiry: z.string().nullable(),
+  job_title: z.string().optional(),
+  label_list: z.array(z.string()).optional(),
   signed_media_url: z.string().optional(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -112,6 +154,99 @@ export const claimResultSchema = z.object({
 export const draftSaveResultSchema = z.object({
   task_id: z.string(),
   saved_at: z.string(),
+});
+
+/** Result of POST /api/assets/upload-url (a short-lived signed upload target). */
+export const uploadUrlResultSchema = z.object({
+  upload_url: z.string(),
+  object_key: z.string(),
+  token: z.string().optional(),
+  method: z.string().optional(),
+});
+
+/** A versioned annotation as returned by submit / review-queue endpoints. */
+export const submissionSchema = z.object({
+  id: z.string(),
+  task_id: z.string(),
+  contributor_id: z.string(),
+  version: z.number(),
+  payload: annotationPayloadSchema,
+  payload_hash: z.string(),
+  schema_version: z.string(),
+  is_fast_flag: z.boolean(),
+  submitted_at: z.string(),
+});
+
+export const reviewSchema = z.object({
+  id: z.string(),
+  submission_id: z.string(),
+  reviewer_type: reviewerTypeSchema,
+  reviewer_id: z.string().nullable(),
+  decision: decisionSchema,
+  reason_code: z.string(),
+  confidence: z.number().nullable(),
+  rubric_version: z.string().nullable(),
+  notes: z.string().nullable(),
+  created_at: z.string(),
+});
+
+export const reviewQueueItemSchema = submissionSchema.extend({
+  task: taskSchema,
+  job: jobSchema,
+});
+
+export const appealSchema = z.object({
+  id: z.string(),
+  submission_id: z.string(),
+  contributor_id: z.string(),
+  reason: z.string(),
+  status: appealStatusSchema,
+  adjudicator_id: z.string().nullable(),
+  resolution_notes: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const appealQueueItemSchema = appealSchema.extend({
+  submission: submissionSchema,
+  task: taskSchema,
+  job: jobSchema,
+});
+
+/** Minimal public receipt returned by GET /api/receipts/{id} (no auth). */
+export const publicReceiptSchema = z.object({
+  id: z.string(),
+  task_id: z.string(),
+  policy_hash: z.string(),
+  annotation_hash: z.string(),
+  reviewer_type: reviewerTypeSchema.nullable(),
+  tx_hash: z.string().nullable(),
+  is_mock: z.boolean(),
+  created_at: z.string(),
+});
+
+/** Admin user projection (no contributor profile). */
+export const adminUserSchema = z.object({
+  id: z.string(),
+  wallet_address: z.string().nullable(),
+  email: z.string().nullable(),
+  role: userRoleSchema,
+  status: userStatusSchema,
+  created_at: z.string(),
+});
+
+export const exportManifestSchema = z.object({
+  dataset_id: z.string(),
+  schema_version: z.string(),
+  asset_hashes: z.record(z.string(), z.string()),
+  rights_reference: z.string().nullable(),
+  review_policy_version: z.string().nullable(),
+  export_time: z.string(),
+  record_counts: z.object({
+    total: z.number(),
+    image: z.number(),
+    video: z.number(),
+  }),
 });
 
 export const receiptSchema = z.object({
@@ -141,6 +276,17 @@ export const earningsSummarySchema = z.object({
   ),
 });
 
+/**
+ * The contributor's in-progress annotation for a task (`GET /tasks/{id}/draft`).
+ * `payload` is the saved draft, or the last submitted payload when the task is
+ * being revised; `null` when there is nothing yet.
+ */
+export const workPayloadSchema = z.object({
+  payload: annotationPayloadSchema.nullable(),
+  saved_at: z.string().nullable(),
+  source: z.enum(["draft", "submission"]).nullable(),
+});
+
 export function paginatedSchema<T extends z.ZodTypeAny>(item: T) {
   return z.object({
     items: z.array(item),
@@ -158,6 +304,48 @@ export type Task = z.infer<typeof taskSchema>;
 export type ClaimResult = z.infer<typeof claimResultSchema>;
 export type Receipt = z.infer<typeof receiptSchema>;
 export type EarningsSummary = z.infer<typeof earningsSummarySchema>;
+export type UploadUrlResult = z.infer<typeof uploadUrlResultSchema>;
+export type Submission = z.infer<typeof submissionSchema>;
+export type Review = z.infer<typeof reviewSchema>;
+export type ReviewQueueItem = z.infer<typeof reviewQueueItemSchema>;
+export type Appeal = z.infer<typeof appealSchema>;
+export type AppealQueueItem = z.infer<typeof appealQueueItemSchema>;
+export type PublicReceipt = z.infer<typeof publicReceiptSchema>;
+export type AdminUser = z.infer<typeof adminUserSchema>;
+export type ExportManifest = z.infer<typeof exportManifestSchema>;
+export type AnnotationPayload = z.infer<typeof annotationPayloadSchema>;
+export type BoundingBox = z.infer<typeof boundingBoxSchema>;
+export type ActionSegment = z.infer<typeof actionSegmentSchema>;
+export type WorkPayload = z.infer<typeof workPayloadSchema>;
+
+/**
+ * The two schema versions seeded by the backend (migration 003).
+ *
+ * The API exposes no "list schema versions" endpoint, so the wizard ships the
+ * canonical seeded ids/labels. The ids are immutable rows created by migration;
+ * they are not invented here.
+ */
+export const SCHEMA_VERSIONS = {
+  image: {
+    id: "a0000000-0000-0000-0000-000000000001",
+    name: "image-boxes-v1",
+    labels: ["cup", "red_block", "blue_block", "hand", "robot_arm", "other"],
+  },
+  video: {
+    id: "a0000000-0000-0000-0000-000000000002",
+    name: "action-segments-v1",
+    labels: [
+      "reach",
+      "grasp",
+      "lift",
+      "place",
+      "inspect",
+      "recover",
+      "write",
+      "other",
+    ],
+  },
+} as const;
 
 // ---------------------------------------------------------------- client
 
@@ -291,6 +479,52 @@ export class PlatformClient {
   patch<T>(schema: z.ZodType<T>, path: string, opts?: RequestOptions) {
     return this.request(schema, path, { ...opts, method: "PATCH" });
   }
+
+  /**
+   * Fetch a binary attachment (the export endpoint streams a file, not the
+   * `{ data }` JSON envelope). Auth is identical; errors are mapped the same
+   * way so screens can render them.
+   */
+  async download(
+    path: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<{ blob: Blob; filename: string | null }> {
+    const headers: Record<string, string> = {};
+    if (this.getToken) {
+      const token = await this.getToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+    }
+
+    let response: Response;
+    try {
+      response = await this.fetchImpl(`${this.appBase}${path}`, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: opts?.signal,
+      });
+    } catch (cause) {
+      throw new PlatformError(
+        "NETWORK",
+        cause instanceof Error ? cause.message : "Network request failed",
+      );
+    }
+
+    if (!response.ok) {
+      const raw = await response.text();
+      const parsedBody = raw ? safeJson(raw) : null;
+      const code = ERROR_CODES[response.status] ?? "SERVER";
+      const message =
+        (parsedBody as { error?: { message?: string } } | null)?.error?.message ??
+        `${response.status} ${response.statusText}`;
+      const details = (parsedBody as { error?: { details?: unknown } } | null)?.error?.details;
+      throw new PlatformError(code, message, response.status, details);
+    }
+
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const match = /filename="?([^";]+)"?/.exec(disposition);
+    return { blob: await response.blob(), filename: match?.[1] ?? null };
+  }
 }
 
 function safeJson(text: string): unknown {
@@ -329,6 +563,8 @@ export const platformPaths = {
   settlementAccept: () => "/api/settlement/accept",
   receipt: (id: string) => `/api/receipts/${id}`,
   earnings: () => "/api/earnings",
+  adminUsers: () => "/api/admin/users",
+  adminUserRole: (id: string) => `/api/admin/users/${id}/role`,
 } as const;
 
 export const isPlatformConfigured = (): boolean =>
