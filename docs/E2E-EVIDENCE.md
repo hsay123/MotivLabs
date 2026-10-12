@@ -1,6 +1,6 @@
 # E2E Evidence — PhysicalData (real backend, no mocks)
 
-Branch: `wire-backend` · Frontend: <http://localhost:3000> · Backend: <http://localhost:3010>
+Branch: `wire-backend` · Frontend: <https://localhost:3000> (HTTPS) · Backend: <http://localhost:3010>
 `DEV_AUTH_BYPASS=false` · Supabase project: `sfebambrdcfqrdmetflw.supabase.co`
 
 Every row below is a command that was actually run and the output that came back. Nothing here is
@@ -16,10 +16,13 @@ fabricated. A slice is only marked **GREEN** when a real session drives it end t
 | Frontend boots | `curl :3000/login` | HTTP 200, page renders (Privy referenced) | ✅ |
 | Auth bypass off | `grep DEV_AUTH_BYPASS backend/.env.local` | `false` | ✅ |
 | Privy app credentials | `PrivyClient.getAppSettings()` | app `cmv2vvueq01hu0gjju69ht0wf` ("Metropolis"), emailAuth on, verification key present | ✅ |
-| Privy browser wiring | `node scripts/verify-login.mjs` | `/login` loads; Sign-in opens Privy modal iframe `https://auth.privy.io`; 0 console/page errors | ✅ |
+| Privy browser wiring | `node scripts/verify-login.mjs` | `/login` over **https**, `window.isSecureContext=true`, Sign-in opens the Privy modal; 0 console/page errors | ✅ |
 | Privy **test credentials** | `PrivyClient.getTestAccessToken()` | `Test credentials not enabled for this app` | ⚠️ browser login required |
 | Storage bucket `media` | `GET /storage/v1/bucket` | exists, `public:false` | ✅ |
 | DB schema | `GET /rest/v1/users?select=id&limit=1` | **404 `PGRST205`** — table not in schema cache | ❌ BLOCKED |
+| Same-origin API proxy | `curl -k :3000/platform/api/health` | `{"data":{"status":"ok",…}}` HTTP 200 (proxied to :3010) | ✅ |
+| External-wallet origin (fix A) | `node scripts/verify-wallet-siwe.mjs` | SIWE `domain=localhost:3000`, `URI=https://localhost:3000`, origin https → **PASS** | ✅ |
+| Email-session fetch (fix B) | `npm test` (vitest) | `fetch` bound to `globalThis`; no `Illegal invocation`; test fails on the pre-fix code | ✅ |
 
 `scripts/infra-check.mjs` output:
 
@@ -33,6 +36,53 @@ INFRA NOT READY (1 blocker(s))
 **Conclusion:** the schema is not visible in `sfebambrdcfqrdmetflw.supabase.co` (nor in the repo's previous
 `ntrtlxnbvrjfpegnstsd.supabase.co`). Until `public` exposes the 14 tables, `/api/me` cannot create the first
 user row and no slice can run.
+
+---
+
+## Auth-bug fixes (A: wallet origin, B: email session fetch)
+
+### A — External-wallet origin mismatch
+
+**Diagnosis (real browser trace).** Privy's SIWE message uses a scheme-less `domain`
+(`window.location.host`) and sets `URI` to `window.location.origin`. ERC-4361 says a missing scheme
+defaults to `https`, and Brave Wallet enforces it — so on an `http://localhost:3000` origin Brave
+reported the request as `https://localhost:3000` ("a different domain from the current origin") and
+the login failed. Nothing in the app config referenced `https://localhost`; the scheme came from the
+ERC-4361 default. **Fix:** serve the dev app over HTTPS so the origin matches, and proxy the API
+same-origin (`/platform`) to avoid mixed content.
+
+`node scripts/verify-wallet-siwe.mjs` (injected EIP-6963 "Brave Wallet", real Privy modal):
+
+```json
+{
+  "origin": "https://localhost:3000",
+  "siweDomain": "localhost:3000",
+  "siweUri": "https://localhost:3000",
+  "checks": { "originIsHttps": true, "schemeLessDomainMatchesHost": true, "uriMatchesOrigin": true }
+}
+PASS — SIWE domain/URI are consistent with the HTTPS dev origin.
+```
+
+The encoded `personal_sign` payload decoded to:
+
+```
+localhost:3000 wants you to sign in with your Ethereum account:
+0x1111…
+URI: https://localhost:3000
+Version: 1
+Chain ID: 10143
+```
+
+### B — Email login: `Failed to execute 'fetch' on 'Window': Illegal invocation`
+
+**Diagnosis.** `PlatformClient` stored the global `fetch` unbound and called it as a method
+(`this.fetchImpl(...)`), so the browser invoked `window.fetch` with the client as receiver and threw
+`Illegal invocation` (wrapped as `NETWORK`). **Fix:** bind once in the constructor
+(`(opts.fetchImpl ?? globalThis.fetch).bind(globalThis)`).
+
+Regression test `src/lib/api/platform.test.ts` (vitest) installs a brand-checking global fetch that
+reproduces the browser behaviour: it **fails with `NETWORK` on the pre-fix code** and passes with
+the fix. `npm test` → 4 passed; backend `npm test` → 171 passed.
 
 ---
 

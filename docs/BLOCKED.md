@@ -81,9 +81,9 @@ Option B — capture sessions once, headed:
 
 ## B4 — Privy dashboard allowed origin
 
-`http://localhost:3000` must be listed under the Privy app's allowed origins, or the browser SDK login is
-rejected. (Dashboard setting — cannot be changed from here.) The frontend now runs on :3000, matching the
-documented origin.
+`https://localhost:3000` must be listed under the Privy app's allowed origins, or the browser SDK login is
+rejected. (Dashboard setting — cannot be changed from here.) The frontend runs on :3000 over **HTTPS**
+(Sign-In with Ethereum requires it — see B7), matching the origin to allow-list.
 
 ---
 
@@ -98,12 +98,22 @@ are possible without it; the actual Monad deploy is left as exact commands in `d
 
 ## B6 — frontend env — ✅ RESOLVED
 
-Frontend `.env.local` now holds the public app id and the API base URL:
+Frontend `.env.local` now holds the public app id and the same-origin API path:
 ```
+NEXT_PUBLIC_API_BASE_URL=/platform        # browser → same-origin HTTPS proxy (next.config.ts)
+PLATFORM_API_URL=http://localhost:3010    # server-side rewrite target (not public)
 NEXT_PUBLIC_PRIVY_APP_ID=cmv2vvueq01hu0gjju69ht0wf   (public identifier)
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3010
 ```
 `@privy-io/react-auth` is installed and `PrivyProvider` wraps the app (email + wallet, embedded wallet for
-users without one, Monad testnet default chain). Backend `FRONTEND_ORIGIN` is `http://localhost:3000`.
+users without one, Monad testnet default chain). Backend `FRONTEND_ORIGIN` is `https://localhost:3000`.
 
 Port note: an unrelated container owns :3001, so the backend runs on :3010 and the frontend on :3000.
+
+## B7 — wallet origin vs. `http://localhost` — ✅ FIXED
+
+Brave Wallet rejected wallet login on `http://localhost:3000` because Privy's SIWE `domain` is scheme-less
+and ERC-4361 defaults it to `https`, so the origin appeared to differ. Fixed by serving dev over HTTPS:
+`npm run dev` now uses `next dev --experimental-https` with a cert generated into `certificates/`
+(gitignored) by `scripts/ensure-dev-cert.mjs`; the API is proxied same-origin under `/platform`.
+Verified by `scripts/verify-wallet-siwe.mjs`. Re-run `sudo mkcert -install` once to remove the browser's
+self-signed-certificate warning.

@@ -48,7 +48,10 @@ export type ApiResult<T> =
   | { ok: false; error: ApiError };
 
 export const apiConfig = {
-  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? null,
+  // Server-side API base URL. Non-`NEXT_PUBLIC_`, so it never reaches the
+  // browser: the browser uses the same-origin `/platform` proxy instead
+  // (NEXT_PUBLIC_API_BASE_URL). See next.config.ts.
+  baseUrl: process.env.PLATFORM_API_URL ?? null,
   /** Documented for operators; the UI never reads a bearer token client-side. */
   authModel: "Server-side session cookie issued by the platform API.",
 } as const;

@@ -3,10 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "predev": "node scripts/ensure-dev-cert.mjs",
+    "dev": "next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem",
+    "dev:http": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "verify:login": "node scripts/verify-login.mjs",
+    "verify:wallet": "node scripts/verify-wallet-siwe.mjs"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.48.1",
@@ -24,6 +29,7 @@
     "eslint-config-next": "16.4.0",
     "playwright": "^1.64.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^1.6.1"
   }
 }

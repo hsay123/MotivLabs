@@ -221,7 +221,11 @@ export class PlatformClient {
   constructor(opts: PlatformClientOptions) {
     this.appBase = opts.baseUrl.replace(/\/$/, "");
     this.getToken = opts.getToken;
-    this.fetchImpl = opts.fetchImpl ?? fetch;
+    // Bind to globalThis: the browser's `fetch` is a method of `window` and
+    // throws "Illegal invocation" if it is called with any other receiver
+    // (e.g. `this.fetchImpl(...)` inside `request`). A stored reference must
+    // be bound before use.
+    this.fetchImpl = (opts.fetchImpl ?? globalThis.fetch).bind(globalThis);
     this.timeoutMs = opts.timeoutMs ?? 15_000;
   }
 
