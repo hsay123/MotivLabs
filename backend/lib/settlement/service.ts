@@ -271,6 +271,9 @@ export async function getEarningsSummary(
       const job = jobMap.get(row.task.job_id) ?? { title: "", reward_per_task: "0" };
       return {
         task_id: row.task_id,
+        // Latest version's id, so a contributor can act on the frozen version
+        // (e.g. appeal a rejection) without a separate submissions endpoint.
+        submission_id: row.id,
         job_title: job.title,
         status: row.task.status,
         reward: job.reward_per_task,

@@ -267,6 +267,7 @@ export const earningsSummarySchema = z.object({
   tasks: z.array(
     z.object({
       task_id: z.string(),
+      submission_id: z.string(),
       job_title: z.string(),
       status: taskStatusSchema,
       reward: z.string(),

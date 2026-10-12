@@ -16,6 +16,7 @@ import {
   type TaskRow,
 } from "@/lib/tasks/repository";
 import { toJob, type JobRow } from "@/lib/jobs/repository";
+import { latestVersionPerTask } from "@/lib/review/queue";
 import type {
   Job,
   Modality,
@@ -29,6 +30,13 @@ import type {
 } from "@/src/types/api";
 
 type Row = Record<string, unknown>;
+
+/** A submission row joined to its task, as returned by the queue query. */
+type QueueSubmissionRow = Row & {
+  version: unknown;
+  submitted_at: unknown;
+  task: TaskRow;
+};
 
 export function toReview(row: Row): Review {
   return {
@@ -107,17 +115,23 @@ export async function listSubmittedQueue(
 
   let query = supabase
     .from("submissions")
-    .select(`*, task:tasks!inner(${TASK_PUBLIC_COLUMNS})`, { count: "exact" })
+    .select(`*, task:tasks!inner(${TASK_PUBLIC_COLUMNS})`)
     .eq("task.status", "submitted")
-    .order("submitted_at", { ascending: true })
-    .range(page.from, page.to);
+    .order("version", { ascending: false });
 
   if (filters.modality) query = query.eq("task.modality", filters.modality);
 
-  const { data, error, count } = await query;
+  const { data, error } = await query;
   if (error) throw HttpError.internal(`Failed to list review queue: ${error.message}`);
 
-  const rows = (data ?? []) as Array<Row & { task: TaskRow }>;
+  // Submissions are append-only: after a revision request the task keeps its
+  // older versions, all of which now match `task.status = 'submitted'`. Present
+  // only the latest version of each task, then paginate the deduped set.
+  const ordered = latestVersionPerTask(
+    (data ?? []) as unknown as QueueSubmissionRow[],
+  );
+  const total = ordered.length;
+  const rows = ordered.slice(page.from, page.to + 1);
 
   const jobIds = Array.from(
     new Set(rows.map((row) => row.task.job_id as string)),
@@ -142,5 +156,5 @@ export async function listSubmittedQueue(
     return { ...toSubmission(row), task: toTask(taskRow), job };
   });
 
-  return paginated(items, count ?? items.length, page);
+  return paginated(items, total, page);
 }

@@ -151,6 +151,33 @@ export function ReviewConsole({ taskId }: { taskId: string }) {
     }
   };
 
+  // A recorded decision moves the task out of the queue, so render the success
+  // state before the "not in your queue" guard (otherwise the reload would hide
+  // the confirmation the reviewer just earned).
+  if (done) {
+    return (
+      <div className="rounded-xl border border-success-line bg-success-bg p-6">
+        <p className="flex items-center gap-2 font-medium text-success-fg">
+          <Check className="h-4 w-4" />
+          Decision recorded
+        </p>
+        <p className="mt-1.5 max-w-xl text-body-sm text-success-fg">
+          This submission was <span className="font-medium">{done.decision}</span> (
+          {done.reason_code}). The task has left the review queue according to the
+          outcome.
+        </p>
+        <ButtonLink
+          href="/workspace/reviewer"
+          variant="secondary"
+          size="sm"
+          className="mt-3"
+        >
+          Back to queue
+        </ButtonLink>
+      </div>
+    );
+  }
+
   return (
     <QueryView query={queue}>
       {() => {
@@ -268,29 +295,7 @@ export function ReviewConsole({ taskId }: { taskId: string }) {
 
             <aside className="lg:col-span-5">
               <div className="sticky top-32 space-y-5">
-                {done ? (
-                  <div className="rounded-xl border border-success-line bg-success-bg p-5">
-                    <p className="flex items-center gap-2 font-medium text-success-fg">
-                      <Check className="h-4 w-4" />
-                      Decision recorded
-                    </p>
-                    <p className="mt-1.5 text-body-sm text-success-fg">
-                      This submission was{" "}
-                      <span className="font-medium">{done.decision}</span> (
-                      {done.reason_code}). The task has left the review queue
-                      according to the outcome.
-                    </p>
-                    <ButtonLink
-                      href="/workspace/reviewer"
-                      variant="secondary"
-                      size="sm"
-                      className="mt-3"
-                    >
-                      Back to queue
-                    </ButtonLink>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-line bg-surface p-5">
+                <div className="rounded-xl border border-line bg-surface p-5">
                     <h2 className="font-display text-title text-ink">Decision</h2>
                     <p className="mt-1.5 text-body-sm text-ink-3">
                       Compare the annotation to the media, then record a decision.
@@ -373,7 +378,6 @@ export function ReviewConsole({ taskId }: { taskId: string }) {
                       </div>
                     ) : null}
                   </div>
-                )}
 
                 <InfoNote>
                   You cannot review your own submission; the platform rejects a

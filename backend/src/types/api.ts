@@ -381,6 +381,7 @@ export interface EarningsSummary {
   total_pending: string;        // accepted but not yet paid
   tasks: Array<{
     task_id: string;
+    submission_id: string;
     job_title: string;
     status: TaskStatus;
     reward: string;

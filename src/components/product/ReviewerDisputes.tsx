@@ -22,6 +22,10 @@ import { appealSchema, platformPaths, type Appeal, type AppealQueueItem } from "
  */
 export function ReviewerDisputes() {
   const appeals = useAppealsQueue();
+  // The queue only exposes open appeals, so a decided appeal leaves the list.
+  // Keep the outcomes recorded in this visit visible so the adjudicator still
+  // sees what they just did.
+  const [decided, setDecided] = useState<Appeal[]>([]);
 
   return (
     <>
@@ -40,12 +44,26 @@ export function ReviewerDisputes() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <Stat label="Open appeals" value={String(open.length)} hint="Awaiting adjudication" />
                 <Stat
-                  label="Total appeals"
-                  value={String(items.length)}
-                  hint="Including decided"
+                  label="Resolved this session"
+                  value={String(decided.length)}
+                  hint="By you, in this visit"
                   tone="muted"
                 />
               </div>
+
+              {decided.length > 0 ? (
+                <div className="mt-6 rounded-xl border border-success-line bg-success-bg p-5">
+                  <p className="font-medium text-success-fg">Appeal adjudicated</p>
+                  <ul className="mt-1.5 space-y-1 text-body-sm text-success-fg">
+                    {decided.map((appeal) => (
+                      <li key={appeal.id}>
+                        appeal {appeal.id.slice(0, 8)}… → {appeal.status}
+                        {appeal.resolution_notes ? ` (${appeal.resolution_notes})` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
 
               {items.length === 0 ? (
                 <div className="mt-6">
@@ -58,7 +76,14 @@ export function ReviewerDisputes() {
               ) : (
                 <ul className="mt-6 space-y-4">
                   {items.map((item) => (
-                    <AppealCard key={item.id} appeal={item} onDecided={appeals.reload} />
+                    <AppealCard
+                      key={item.id}
+                      appeal={item}
+                      onDecided={(appeal) => {
+                        setDecided((prev) => [appeal, ...prev]);
+                        appeals.reload();
+                      }}
+                    />
                   ))}
                 </ul>
               )}
@@ -81,7 +106,7 @@ function AppealCard({
   onDecided,
 }: {
   appeal: AppealQueueItem;
-  onDecided: () => void;
+  onDecided: (appeal: Appeal) => void;
 }) {
   const { run, pending, error } = useAction();
   const [notes, setNotes] = useState("");
@@ -100,7 +125,7 @@ function AppealCard({
     );
     if (updated) {
       setResult(updated);
-      onDecided();
+      onDecided(updated);
     }
   };
 

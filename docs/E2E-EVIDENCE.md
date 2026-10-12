@@ -191,13 +191,45 @@ contributor who has already submitted to the task (read-only review of their own
 `useClientQuery` keeps last-good data during a reload so the success state is not blanked.
 
 
-## S3 — Contributor claim / label / submit
+## S4 — Review → correction → appeal
 
-Status: NOT STARTED.
+Status: **GREEN** (2026-10-12). `e2e/s4-reviewer-lifecycle.spec.ts` builds a published video job over the
+real API, has a real contributor claim + submit version 1, then runs the full lifecycle across two roles:
 
-## S4 — Review + appeal
+```
+$ npx playwright test e2e/s4-reviewer-lifecycle.spec.ts
+Running 6 tests using 1 worker
+  ✓ 1  reviewer requests a revision for version 1        (human revise / IMPRECISE_TIMING)
+  ✓ 2  contributor corrects the annotation and resubmits as version 2
+  ✓ 3  reviewer rejects version 2                        (human reject / RUBRIC_VIOLATION)
+  ✓ 4  contributor files an appeal against the rejected version
+  ✓ 5  reviewer upholds the appeal and the task becomes accepted
+  ✓ 6  a contributor cannot record a review decision      (403; 401 unauthenticated)
+6 passed
+```
 
-Status: NOT STARTED.
+Persistence + invariants verified in Supabase (`execute_sql`) for task `cd1cbc83…`:
+
+| Check | Evidence |
+| --- | --- |
+| Append-only corrections | two `submissions` rows: `v1` (label `reach`, fast flag) and `v2` (label `grasp`); the resubmit changed the payload, so it was not a `422 DUPLICATE_PAYLOAD` |
+| Human decisions | `reviews`: `revise` / `IMPRECISE_TIMING` (human, on v1); `reject` / `RUBRIC_VIOLATION` (human, on v2) |
+| Appeal lifecycle | `appeals`: one row, `status = accepted`, `adjudicator_id` = the reviewer, resolution notes recorded; the original submission + review stay immutable |
+| Uphold outcome | `reviews`: `accept` / `APPEAL_UPHELD` (human, on v2); task `status = accepted`, `lease_owner = null` |
+| Role boundary | `POST /api/reviews/{id}/decision` with a contributor token → **403 `FORBIDDEN`**; no token → **401** |
+
+Fixes surfaced by the slice:
+
+- Submissions are append-only, so after a revision request every historical version of a task matched
+  `task.status = 'submitted'` and the queue listed the same task once per version (a reviewer could open a
+  stale one). `listSubmittedQueue` now keeps only the latest version per task before paginating; the rule
+  is extracted to `backend/lib/review/queue.ts` and pinned by `backend/lib/review/__tests__/queue.test.ts`.
+- Recording a decision reloads the queue, which removes the task — the console's "not in your queue" guard
+  was masking the "Decision recorded" confirmation. The success state now renders before that guard.
+- The appeals queue intentionally exposes only open appeals, so a decided appeal vanished after
+  adjudication. The disputes screen now shows the outcomes recorded in the visit above the list (and the
+  second stat reads "Resolved this session" instead of implying it includes decided appeals the endpoint
+  does not return).
 
 ## S5 — Receipt + export
 
