@@ -35,6 +35,9 @@ export async function GET(req: NextRequest) {
         role: user.role,
         status: user.status,
         created_at: user.created_at,
+        onboarding_completed: user.onboarding_completed,
+        onboarding_account_type: user.onboarding_account_type,
+        organization_id: user.organization_id,
         profile: (profile as MeProfile | null) ?? null,
       };
       return ok(body);

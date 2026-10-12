@@ -12,7 +12,7 @@ import { Check } from "@/components/ui/icons";
  * Sign-in is handled entirely by Privy: the button opens the Privy modal with
  * email (one-time code) and wallet methods, and an embedded wallet is created
  * for users who do not have one. On success we go straight to the workspace,
- * which resolves the real profile from the API.
+ * which resolves the real profile and handles onboarding redirect.
  */
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
