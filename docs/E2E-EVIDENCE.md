@@ -83,7 +83,36 @@ Chain ID: 10143
 
 Regression test `src/lib/api/platform.test.ts` (vitest) installs a brand-checking global fetch that
 reproduces the browser behaviour: it **fails with `NETWORK` on the pre-fix code** and passes with
-the fix. `npm test` → 4 passed; backend `npm test` → 171 passed.
+the fix. `npm test` → 4 passed; backend `npm test` → 174 passed.
+
+### C — Wallet login: duplicate `privy_did` race + external-wallet chain prompt
+
+**Symptom (backend log, 2026-10-12):** a real wallet login authenticated fine with Privy, then the
+backend failed on user creation:
+
+```
+[API Error] Error: Failed to create user: duplicate key value violates unique constraint "users_privy_did_key"
+    at loadOrCreateUserByPrivyDid (lib/auth/verifyToken.ts:138:26)
+[frontend log] [browser] Error authenticating session  (x3)
+```
+
+`loadOrCreateUserByPrivyDid` did a raw SELECT-then-INSERT: on a fresh login the browser can fire more
+than one `/api/me`, both SELECT-miss the still-absent `users` row, then both INSERT — the loser hits
+`users_privy_did_key` and the session dies. **Fix:** on a duplicate-key insert error the loser
+re-reads the winner's row and returns it instead of failing. Regression test
+`backend/lib/auth/__tests__/userCreateRace.test.ts` (3 tests: create / race-recovery / rethrow) —
+backend suite now **174 passed**.
+
+**Second cause (Privy docs):** the app set `defaultChain: monadTestnet` (chain 10143). Per
+docs.privy.io, that makes Privy prompt external wallets to switch to the default chain on login, and
+*some wallets reject the connection outright when an unsupported testnet is the default chain*.
+**Fix:** `PrivyProvider` now sets `supportedChains: [monadTestnet]` with **no `defaultChain`** —
+external wallets log in on whatever chain they are on (no switch prompt), while embedded wallets
+still start on Monad testnet (`supportedChains[0]`).
+
+Re-verified with `scripts/verify-wallet-siwe.mjs` (real Privy modal, mock wallet): SIWE
+`domain=localhost:3000`, `URI=https://localhost:3000`, **Chain ID: 1** (the wallet's own chain — no
+switch is requested anymore); all checks **PASS**.
 
 ---
 

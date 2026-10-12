@@ -17,6 +17,9 @@
    `cd backend && psql "$DATABASE_URL" -f supabase/all_migrations.sql`.
 2. **Create a private Storage bucket named `media`** (Supabase → Storage → New bucket, public off).
 3. **Privy dashboard:** add `https://localhost:3000` to allowed origins; enable email login.
+   Client config uses `supportedChains: [Monad testnet]` with **no `defaultChain`** so external
+   wallets are not asked to switch chain during login (some wallets reject an unsupported testnet
+   default chain).
 5. **Trust the dev certificate (optional, removes the browser warning):** the `dev` script generates
    `certificates/localhost*.pem` (gitignored). Run `mkcert -install` once with sudo to trust the local
    CA; otherwise accept the self-signed certificate warning once in the browser.
