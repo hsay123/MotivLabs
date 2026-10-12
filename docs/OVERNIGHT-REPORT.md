@@ -18,7 +18,7 @@ and contract are in place; switching the screens over is the next large slice.
 | 4 E2E S1–S7 | ⛔ blocked | no DB schema, no Privy sessions (see BLOCKED B1/B3) |
 | 5 Chain | ⛔ not started | no funded testnet key; contract work untouched |
 | 6 Hardening + report | ✅ done | this file, RUNBOOK, BACKEND-CHANGES, API-CONTRACT |
-| 7 Finalize | 🟡 commit only | committed on `wire-backend`; **no shutdown** (interactive) |
+| 7 Finalize | ✅ commit+push | committed on `wire-backend`, pushed to `origin/wire-backend`; **no shutdown** (interactive) |
 
 ## What is real now
 - **Privy verification** (`lib/auth/verifyToken.ts`): ES256 signature, `iss=privy.io`,

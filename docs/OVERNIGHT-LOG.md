@@ -40,7 +40,7 @@
 - [ ] Phase 4 — E2E (blocked by DB + Privy sessions).
 - [ ] Phase 5 — chain (no funded testnet key; not started).
 - [x] Phase 6 — hardening docs: BACKEND-CHANGES, API-CONTRACT, RUNBOOK, OVERNIGHT-REPORT.
-- [~] Phase 7 — commit on `wire-backend`; no push attempted; **no shutdown** (interactive run).
+- [x] Phase 7 — committed on `wire-backend` and pushed to `origin/wire-backend` (non-interactive, secret scan clean); **no shutdown** (interactive run).
 
 ## Additional decisions
 7. **Frontend integration boundary.** Rather than blind-rewriting ~20 screens
@@ -52,3 +52,9 @@
    the client boundary, as the brief requires; no other library was added.
 9. **Audit sample (2.6) skipped** — it needs a new table/migration, and migrations
    cannot be applied (B1). Documented rather than half-built.
+10. **Live API left OFF by default.** `src/lib/api/{client,read}.ts` flip from the
+    labelled preview to "live" the moment `NEXT_PUBLIC_API_BASE_URL` is set. Because
+    the screens are not yet switched to `platform.ts`, enabling it now would replace
+    a clean preview with empty/error states. So the flag is **commented out** in the
+    local `.env.local` (gitignored) and documented in `.env.example`/RUNBOOK: turn it
+    on together with the Phase 3.2–3.5 screen wiring, once the DB is up.
