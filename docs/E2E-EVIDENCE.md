@@ -19,23 +19,24 @@ fabricated. A slice is only marked **GREEN** when a real session drives it end t
 | Privy browser wiring | `node scripts/verify-login.mjs` | `/login` over **https**, `window.isSecureContext=true`, Sign-in opens the Privy modal; 0 console/page errors | ✅ |
 | Privy **test credentials** | `PrivyClient.getTestAccessToken()` | `Test credentials not enabled for this app` | ⚠️ browser login required |
 | Storage bucket `media` | `GET /storage/v1/bucket` | exists, `public:false` | ✅ |
-| DB schema | `GET /rest/v1/users?select=id&limit=1` | **404 `PGRST205`** — table not in schema cache | ❌ BLOCKED |
+| DB schema | Supabase MCP `apply_migration` 001–005 + `notify pgrst,'reload schema'` | 14 tables, 8 enums, RLS on; `list_migrations` complete | ✅ |
 | Same-origin API proxy | `curl -k :3000/platform/api/health` | `{"data":{"status":"ok",…}}` HTTP 200 (proxied to :3010) | ✅ |
 | External-wallet origin (fix A) | `node scripts/verify-wallet-siwe.mjs` | SIWE `domain=localhost:3000`, `URI=https://localhost:3000`, origin https → **PASS** | ✅ |
 | Email-session fetch (fix B) | `npm test` (vitest) | `fetch` bound to `globalThis`; no `Illegal invocation`; test fails on the pre-fix code | ✅ |
 
-`scripts/infra-check.mjs` output:
+`scripts/infra-check.mjs` output (after migration, 2026-10-12):
 
 ```
-FAIL tables        missing: users, projects, assets, jobs, tasks, submissions, reviews, appeals, receipts
+PASS tables        all 9 required tables present
 PASS bucket        'media' exists (private)
 WARN auth users    none (log in via Privy to create the first user)
-INFRA NOT READY (1 blocker(s))
+INFRA READY
 ```
 
-**Conclusion:** the schema is not visible in `sfebambrdcfqrdmetflw.supabase.co` (nor in the repo's previous
-`ntrtlxnbvrjfpegnstsd.supabase.co`). Until `public` exposes the 14 tables, `/api/me` cannot create the first
-user row and no slice can run.
+**Conclusion:** the schema is applied and `public` exposes the tables (service-role only; no anon GRANTs).
+The next dependency is a real Privy login to create the first `users` row (B3 — test credentials not
+enabled, B4 — allowed origin). Dev servers were restarted after an OpenCode session reload on 2026-10-12
+and re-verified: `/login` HTTP 200, `/platform/api/me` HTTP 401, `verify-login.mjs` → 0 console/page errors.
 
 ---
 
@@ -88,10 +89,11 @@ the fix. `npm test` → 4 passed; backend `npm test` → 171 passed.
 
 ## S1 — Auth & roles
 
-Status: **BLOCKED on the DB schema.** Privy token verification itself is ready (credentials verified above;
-`lib/auth/verifyToken.ts` fetches the app's SPKI verification key via the SDK, so no
-`PRIVY_VERIFICATION_KEY` is required). Once the schema is present, the first real login creates the first
-`users` row (role `contributor`), after which roles are set with `backend/scripts/set-role.ts`.
+Status: **BLOCKED on a human Privy login** (B3 — test credentials not enabled; B4 — `https://localhost:3000`
+must be in the Privy allowed origins). DB schema is applied, token verification is ready (credentials
+verified above; `lib/auth/verifyToken.ts` fetches the app's SPKI verification key via the SDK, so no
+`PRIVY_VERIFICATION_KEY` is required). The first real login creates the first `users` row (role
+`contributor`), after which roles are set with `backend/scripts/set-role.ts`.
 
 ## S2 — Buyer project + upload + tasks + publish
 

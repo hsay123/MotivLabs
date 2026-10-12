@@ -11,10 +11,10 @@
   `PLATFORM_API_URL` (`http://localhost:3010`). This keeps a single HTTPS origin (no mixed content).
 
 ## 1. Prerequisites (one-time)
-1. **Apply the database migrations.** They are not applied yet (see `docs/BLOCKED.md`).
-   One-shot bundle: `backend/supabase/all_migrations.sql`.
-   - Supabase SQL editor: paste and run the whole file, **or**
-   - `cd backend && psql "$DATABASE_URL" -f supabase/all_migrations.sql`.
+1. **Database migrations — APPLIED (2026-10-12)** on `sfebambrdcfqrdmetflw` via the Supabase MCP server
+   (`apply_migration` 001–005, then `notify pgrst, 'reload schema';`). To (re)apply on another project:
+   the one-shot bundle is `backend/supabase/all_migrations.sql` — paste it in the Supabase SQL editor, or
+   `cd backend && psql "$DATABASE_URL" -f supabase/all_migrations.sql`.
 2. **Create a private Storage bucket named `media`** (Supabase → Storage → New bucket, public off).
 3. **Privy dashboard:** add `https://localhost:3000` to allowed origins; enable email login.
 5. **Trust the dev certificate (optional, removes the browser warning):** the `dev` script generates
@@ -98,7 +98,7 @@ E2E (Playwright) and the S1–S7 slices are **not yet wired** — see the report
 |---|---|
 | Privy token verification | **Real** (ES256, issuer/audience/expiry) — unit-tested locally |
 | Projects / assets / tasks / job lifecycle / roles / admin | **Real** code, DB-backed |
-| Database schema | **Not applied** — must be applied by a human (see BLOCKED) |
+| Database schema | **Applied** on `sfebambrdcfqrdmetflw` — rack 001–005, RLS on, no GRANTs (service-role only) |
 | Storage bucket | **Created** — private `media` bucket on `sfebambrdcfqrdmetflw` |
 | Settlement | **Mock** while `is_mock=true`; receipts must show "Mock settlement, no onchain transaction" |
 | Frontend product screens | Still render the labelled **interface preview**; `src/lib/api/platform.ts` is the real contract but the screens are not yet switched over |

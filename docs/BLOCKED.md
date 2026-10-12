@@ -4,45 +4,27 @@ This file lists the exact things that stop work, with the command or value neede
 
 ---
 
-## B1 (HARD BLOCKER) — Database schema is not applied
+## B1 — Database schema — ✅ RESOLVED (2026-10-12, via the Supabase MCP server)
 
-**Symptom (verified by calling Supabase REST with the service-role key, 2026-10-12):**
+The 14-table schema was applied to `sfebambrdcfqrdmetflw.supabase.co` from the repo migrations
+(`backend/supabase/migrations/001…005`, same content as `backend/supabase/all_migrations.sql`) through the
+authenticated Supabase MCP server — `apply_migration` per file, in order — then `notify pgrst, 'reload schema';`.
 
-```
-GET {SUPABASE_URL}/rest/v1/users?select=id&limit=1
-→ 404  {"code":"PGRST205","message":"Could not find the table 'public.users' in the schema cache"}
-```
+Verification (all green):
 
-Checked on **both** projects:
+| Check | Result |
+| --- | --- |
+| `list_migrations` | `001_initial_schema` … `005_appeals_indexes` recorded |
+| `information_schema` | 14 public tables, 8 enum types, 14/14 tables RLS-enabled |
+| `schema_versions` | seeded, 2 rows (`image-boxes-v1`, `action-segments-v1`) |
+| `scripts/infra-check.mjs` | **INFRA READY** |
 
-| Project | `GET /rest/v1/` (OpenAPI) | `users` | Verdict |
-| --- | --- | --- | --- |
-| `sfebambrdcfqrdmetflw` (current `backend/.env.local`, `media` bucket lives here) | only `/rpc/rls_auto_enable` | 404 `PGRST205` | no tables |
-| `ntrtlxnbvrjfpegnstsd` (previous default) | only `/rpc/rls_auto_enable` | 404 `PGRST205` | no tables |
+**No GRANTs were added.** The Data API (anon/authenticated) still sees nothing — RLS is enabled with no
+policies on every table, per the service-role-only design. The backend talks to the database with the
+service-role key (bypasses RLS), so the app needs no extra grants.
 
-The migrations in `backend/supabase/migrations/` (001–005, bundled as `all_migrations.sql`, 14 `CREATE TABLE`s)
-have never been run against either project. Nothing that touches the database (`/api/me`, `/api/jobs`,
-seeding, every E2E slice) can work until they are.
-
-**Why I cannot do it:** there is no `DATABASE_URL` in `backend/.env.local`, and the service-role JWT cannot
-run DDL over PostgREST (`/pg/query` → 404). Migrations are plain SQL and need a real Postgres connection.
-
-**Unblock — pick ONE:**
-
-Option A — give the agent a connection string (add to `backend/.env.local`, gitignored):
-```
-DATABASE_URL=postgresql://postgres:<DB-PASSWORD>@db.<project-ref>.supabase.co:5432/postgres
-```
-(Or the Supavisor pooler string from Supabase → Project Settings → Database → Connection string.)
-Then run: `cd backend && psql "$DATABASE_URL" -f supabase/all_migrations.sql`
-
-Option B — apply it yourself in the Supabase SQL editor:
-1. Open Supabase → SQL Editor → New query.
-2. Paste the entire contents of `backend/supabase/all_migrations.sql` and click **Run**.
-   (This file is migrations 001–005 concatenated in order.)
-3. Confirm with: `select count(*) from users;` — should succeed (0 rows).
-
-After either option, also run the seed: `cd backend && npm run seed`.
+To re-apply on another project later: Supabase SQL editor → paste `backend/supabase/all_migrations.sql`
+→ Run, then `cd backend && npm run seed`.
 
 ---
 
