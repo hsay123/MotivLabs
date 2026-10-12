@@ -233,7 +233,44 @@ Fixes surfaced by the slice:
 
 ## S5 — Receipt + export
 
-Status: NOT STARTED. Settlement will be labelled **Mock settlement** unless the chain tier is completed.
+Status: **GREEN** (2026-10-12). `e2e/s5-receipts-export.spec.ts` builds a published two-task video job
+over the real API, has a real contributor claim + submit one task, a real reviewer accept it, and a real
+admin settle it. Video always routes to human review, so the accepted set is deterministic:
+
+```
+$ npx playwright test e2e/s5-receipts-export.spec.ts
+Running 5 tests using 1 worker
+  ✓ 1  buyer export contains only the accepted version, with provenance and no identity
+  ✓ 2  buyer streams a real file download from the export screen
+  ✓ 3  settlement writes a public mock receipt
+  ✓ 4  contributor earnings labels the payout as mock and links to its receipt
+  ✓ 5  role boundaries: contributor cannot export or settle, anonymous cannot read
+5 passed
+```
+
+Persistence + invariants verified in Supabase (`execute_sql`):
+
+| Check | Evidence |
+| --- | --- |
+| Accepted-versions-only export | job has two tasks; only the accepted one is exported (`record_counts.total = 1`, `video = 1`), and the still-open second task id is absent from the body |
+| No contributor identity | the export body does not contain the contributor's user id (checked against `GET /api/me`) |
+| Real streamed download | the export screen's Download button produces a Playwright `download` event (`job-<id>-export.json`) |
+| Settlement record | `receipts`: one row, `is_mock = true`, `tx_hash = 0x9af579…`, `annotation_hash` = the submission `payload_hash`, `review_ref` = the accepting review |
+| Task settled | task `status = paid`, `lease_owner = null`; the untaken sibling task stays `available` |
+| Public receipt | `GET /api/receipts/{id}` with **no** token → `200`; the receipt page renders anonymously |
+| Role boundary | contributor → `GET /api/jobs/{id}/export` **403**, `POST /api/settlement/accept` **403**; anonymous export **401**; anonymous receipt **200** |
+
+Product changes:
+
+- New public receipt screen at `/receipts/{id}` (`src/components/receipts/PublicReceipt.tsx`), reading the
+  real receipt through a new session-free `usePublicQuery`. A mocked payout is labelled **Mock settlement**
+  with the note that the reference is a deterministic mock hash, never an on-chain transaction; a real
+  chain settlement (when configured) is labelled as on-chain.
+- `ContributorEarnings` now labels a mocked payout **Mock settlement** (previously a mock hash was shown as
+  "on-chain", which was wrong) and links each settled row to its receipt. Earnings rows carry
+  `receipt_id` + `settlement_is_mock` (additive reads; the schema is unchanged).
+- `live.ts` factors the query runner into `useQueryWithClient` so authenticated (`useClientQuery`) and
+  public (`usePublicQuery`) reads share the same stale-while-revalidate behaviour.
 
 ## S6 — Lifecycle + admin
 

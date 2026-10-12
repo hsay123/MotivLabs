@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEarnings } from "@/lib/api/live";
 import { QueryView, InfoNote } from "@/components/product/AsyncView";
 import { WorkspaceHeader, Stat } from "@/components/product/WorkspaceHeader";
@@ -12,10 +13,10 @@ import { formatDate, formatUsd } from "@/lib/utils/format";
  * Earnings.
  *
  * Reads the real earnings summary: accepted count, settled total, pending total
- * and one row per submitted task. A reward is only shown as settled when the
- * settlement record exists; the API reports whether a payout is on-chain by
- * whether a transaction hash is present. Off-chain settlement is labelled as
- * such, never presented as a confirmed on-chain payout.
+ * and one row per submitted task. A reward is shown as settled only when a
+ * payout receipt exists, and a mocked payout is labelled "Mock settlement"
+ * rather than being dressed up as an on-chain transaction. Every settled row
+ * links to its public receipt.
  */
 export function ContributorEarnings() {
   const earnings = useEarnings();
@@ -101,12 +102,23 @@ export function ContributorEarnings() {
                             {formatDate(task.submitted_at)}
                           </td>
                           <td className="px-5 py-3 text-ink-3">
-                            {task.tx_hash ? (
-                              <span className="font-mono text-[11px]">
-                                on-chain · {task.tx_hash.slice(0, 10)}…
-                              </span>
+                            {!task.receipt_id ? (
+                              <span className="text-caption">Not settled</span>
                             ) : (
-                              <span className="text-caption">Off-chain record</span>
+                              <Link
+                                href={`/receipts/${task.receipt_id}`}
+                                className="underline decoration-dotted underline-offset-2 hover:text-ink"
+                              >
+                                {task.settlement_is_mock ? (
+                                  "Mock settlement"
+                                ) : task.tx_hash ? (
+                                  <span className="font-mono text-[11px]">
+                                    on-chain · {task.tx_hash.slice(0, 10)}…
+                                  </span>
+                                ) : (
+                                  "Off-chain record"
+                                )}
+                              </Link>
                             )}
                           </td>
                         </tr>
@@ -118,10 +130,10 @@ export function ContributorEarnings() {
 
               <InfoNote>
                 Settlement in this build follows the configured platform tier. A
-                payment is shown as on-chain only when a transaction hash exists;
-                otherwise it is an off-chain settlement record. Where the platform
-                marks a settlement as mock, that flag is stated explicitly on the
-                related receipt.
+                payout is shown as on-chain only when a real transaction hash
+                exists; a mocked payout is labelled <strong>Mock settlement</strong>{" "}
+                and never presented as a confirmed on-chain payment. Each settled
+                row links to its public receipt.
               </InfoNote>
             </>
           );

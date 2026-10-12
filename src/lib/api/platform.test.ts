@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { PlatformClient } from "./platform";
+import { PlatformClient, earningsSummarySchema } from "./platform";
 
 const userSchema = z.object({ id: z.string(), role: z.string() });
 
@@ -100,5 +100,58 @@ describe("PlatformClient — auth and envelope", () => {
     await expect(client.get(userSchema, "/api/me")).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
+  });
+});
+
+/**
+ * S5 regression: an earnings row now carries the payout receipt id and an
+ * explicit mock flag, so a mocked payout can be labelled honestly rather than
+ * inferred from the presence of a transaction hash.
+ */
+describe("earningsSummarySchema", () => {
+  it("parses a settled row that carries a mock receipt", () => {
+    const parsed = earningsSummarySchema.parse({
+      total_accepted: 1,
+      total_paid: "6",
+      total_pending: "0",
+      tasks: [
+        {
+          task_id: "t1",
+          submission_id: "s1",
+          job_title: "Job",
+          status: "paid",
+          reward: "6",
+          submitted_at: "2026-01-01T00:00:00Z",
+          receipt_id: "r1",
+          settlement_is_mock: true,
+          tx_hash: "0xabc",
+        },
+      ],
+    });
+    expect(parsed.tasks[0].receipt_id).toBe("r1");
+    expect(parsed.tasks[0].settlement_is_mock).toBe(true);
+  });
+
+  it("parses an unsettled row with no receipt", () => {
+    const parsed = earningsSummarySchema.parse({
+      total_accepted: 1,
+      total_paid: "0",
+      total_pending: "6",
+      tasks: [
+        {
+          task_id: "t1",
+          submission_id: "s1",
+          job_title: "Job",
+          status: "accepted",
+          reward: "6",
+          submitted_at: "2026-01-01T00:00:00Z",
+          receipt_id: null,
+          settlement_is_mock: null,
+          tx_hash: null,
+        },
+      ],
+    });
+    expect(parsed.tasks[0].receipt_id).toBeNull();
+    expect(parsed.tasks[0].settlement_is_mock).toBeNull();
   });
 });

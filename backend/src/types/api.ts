@@ -386,6 +386,10 @@ export interface EarningsSummary {
     status: TaskStatus;
     reward: string;
     submitted_at: string;
+    /** Payout receipt id, or null when the task is not settled yet. */
+    receipt_id: string | null;
+    /** Whether the recorded payout is a mock settlement (never on-chain). */
+    settlement_is_mock: boolean | null;
     tx_hash: string | null;
   }>;
 }

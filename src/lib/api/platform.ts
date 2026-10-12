@@ -272,6 +272,8 @@ export const earningsSummarySchema = z.object({
       status: taskStatusSchema,
       reward: z.string(),
       submitted_at: z.string(),
+      receipt_id: z.string().nullable(),
+      settlement_is_mock: z.boolean().nullable(),
       tx_hash: z.string().nullable(),
     }),
   ),

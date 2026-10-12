@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { useSession } from "./session";
+import { useSession, usePlatformClient } from "./session";
 import {
   PlatformError,
   platformPaths,
@@ -46,16 +46,16 @@ export function asPlatformError(cause: unknown): PlatformError {
 }
 
 /**
- * Run an authenticated read whenever `key` (or the underlying session
- * changes. The loader is held in a ref, so callers can build it inline
- * without re-fetching on every render — re-fetches are keyed explicitly.
+ * Shared query runner. The loader is held in a ref, so callers can build it
+ * inline without re-fetching on every render — re-fetches are keyed explicitly.
+ * `client` may be null (e.g. a public read before the platform is configured).
  */
-export function useClientQuery<T>(
+function useQueryWithClient<T>(
+  client: PlatformClient | null,
   key: string,
   loader: (client: PlatformClient) => Promise<T>,
   options?: { enabled?: boolean },
 ): Query<T> {
-  const { client } = useSession();
   const loaderRef = useRef(loader);
   const keyRef = useRef(key);
 
@@ -65,7 +65,7 @@ export function useClientQuery<T>(
     loaderRef.current = loader;
   });
 
-  const enabled = options?.enabled ?? true;
+  const enabled = (options?.enabled ?? true) && client !== null;
   const [nonce, setNonce] = useState(0);
   const [state, setState] = useState<QueryState<T>>({
     status: "loading",
@@ -74,7 +74,7 @@ export function useClientQuery<T>(
   });
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !client) return;
     let active = true;
     const keyChanged = keyRef.current !== key;
     keyRef.current = key;
@@ -106,6 +106,31 @@ export function useClientQuery<T>(
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
   return { ...state, reload };
+}
+
+/**
+ * Run an authenticated read whenever `key` (or the underlying session) changes.
+ */
+export function useClientQuery<T>(
+  key: string,
+  loader: (client: PlatformClient) => Promise<T>,
+  options?: { enabled?: boolean },
+): Query<T> {
+  const { client } = useSession();
+  return useQueryWithClient(client, key, loader, options);
+}
+
+/**
+ * Run a read that does not require a signed-in session — used for public
+ * resources such as payout receipts, which the API serves without auth.
+ */
+export function usePublicQuery<T>(
+  key: string,
+  loader: (client: PlatformClient) => Promise<T>,
+  options?: { enabled?: boolean },
+): Query<T> {
+  const client = usePlatformClient();
+  return useQueryWithClient(client, key, loader, options);
 }
 
 /** Imperative action runner with pending/error state for mutations. */
@@ -234,7 +259,7 @@ export function useEarnings() {
 }
 
 export function useReceipt(id: string) {
-  return useClientQuery(
+  return usePublicQuery(
     `receipt:${id}`,
     (client) => client.get(publicReceiptSchema, platformPaths.receipt(id)),
     { enabled: Boolean(id) },

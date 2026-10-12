@@ -249,26 +249,31 @@ export async function getEarningsSummary(
   }
 
   const submissionIds = taskRows.map((r) => r.id);
-  const txBySubmission = new Map<string, string | null>();
+  const receiptBySubmission = new Map<
+    string,
+    { id: string; tx_hash: string | null; is_mock: boolean }
+  >();
   if (submissionIds.length > 0) {
     const { data: receipts, error: receiptError } = await supabase
       .from("receipts")
-      .select("submission_id, tx_hash")
+      .select("id, submission_id, tx_hash, is_mock")
       .in("submission_id", submissionIds);
     if (receiptError) {
       throw HttpError.internal(`Failed to load earnings receipts: ${receiptError.message}`);
     }
     for (const receipt of receipts ?? []) {
-      txBySubmission.set(
-        receipt.submission_id as string,
-        (receipt.tx_hash as string | null) ?? null,
-      );
+      receiptBySubmission.set(receipt.submission_id as string, {
+        id: receipt.id as string,
+        tx_hash: (receipt.tx_hash as string | null) ?? null,
+        is_mock: Boolean(receipt.is_mock),
+      });
     }
   }
 
   const tasks = taskRows
     .map((row) => {
       const job = jobMap.get(row.task.job_id) ?? { title: "", reward_per_task: "0" };
+      const receipt = receiptBySubmission.get(row.id);
       return {
         task_id: row.task_id,
         // Latest version's id, so a contributor can act on the frozen version
@@ -278,7 +283,11 @@ export async function getEarningsSummary(
         status: row.task.status,
         reward: job.reward_per_task,
         submitted_at: row.submitted_at,
-        tx_hash: txBySubmission.get(row.id) ?? null,
+        // `is_mock` lets the UI label a mocked payout honestly instead of
+        // implying every hash is an on-chain transaction.
+        receipt_id: receipt?.id ?? null,
+        settlement_is_mock: receipt ? receipt.is_mock : null,
+        tx_hash: receipt?.tx_hash ?? null,
       };
     })
     .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
