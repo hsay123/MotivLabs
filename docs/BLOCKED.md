@@ -6,15 +6,23 @@ This file lists the exact things that stop work, with the command or value neede
 
 ## B1 (HARD BLOCKER) — Database schema is not applied
 
-**Symptom (verified by calling Supabase REST with the service-role key):**
+**Symptom (verified by calling Supabase REST with the service-role key, 2026-10-12):**
 
 ```
 GET {SUPABASE_URL}/rest/v1/users?select=id&limit=1
 → 404  {"code":"PGRST205","message":"Could not find the table 'public.users' in the schema cache"}
 ```
 
-The migrations in `backend/supabase/migrations/` (001–005) have never been run against this project. Nothing
-that touches the database (`/api/me`, `/api/jobs`, seeding, every E2E slice) can work until they are.
+Checked on **both** projects:
+
+| Project | `GET /rest/v1/` (OpenAPI) | `users` | Verdict |
+| --- | --- | --- | --- |
+| `sfebambrdcfqrdmetflw` (current `backend/.env.local`, `media` bucket lives here) | only `/rpc/rls_auto_enable` | 404 `PGRST205` | no tables |
+| `ntrtlxnbvrjfpegnstsd` (previous default) | only `/rpc/rls_auto_enable` | 404 `PGRST205` | no tables |
+
+The migrations in `backend/supabase/migrations/` (001–005, bundled as `all_migrations.sql`, 14 `CREATE TABLE`s)
+have never been run against either project. Nothing that touches the database (`/api/me`, `/api/jobs`,
+seeding, every E2E slice) can work until they are.
 
 **Why I cannot do it:** there is no `DATABASE_URL` in `backend/.env.local`, and the service-role JWT cannot
 run DDL over PostgREST (`/pg/query` → 404). Migrations are plain SQL and need a real Postgres connection.
@@ -38,24 +46,19 @@ After either option, also run the seed: `cd backend && npm run seed`.
 
 ---
 
-## B2 (HARD BLOCKER) — Storage bucket `media` does not exist
+## B2 — Storage bucket `media` — ✅ RESOLVED
 
-**Symptom:** `GET {SUPABASE_URL}/storage/v1/bucket/media` → 400 `{"code":"NoSuchBucket"}`.
-
-The backend signs 5-minute media URLs against a private bucket named `media`
-(`SUPABASE_STORAGE_BUCKET`, default `media`). Signed-URL and upload flows fail until it exists.
-
-**Unblock:** create a **private** bucket named `media` (Supabase → Storage → New bucket → name `media`,
-public = off). Or provide a service-role request that the agent can run — bucket creation is a Storage API
-call, not DDL, so once migration B1 is done the agent can also run:
-
-```
-POST {SUPABASE_URL}/storage/v1/bucket   {"id":"media","name":"media","public":false}
-```
+Created via the Storage API on `sfebambrdcfqrdmetflw`: `POST /storage/v1/bucket {"id":"media","name":"media","public":false}`
+→ HTTP 200. Verified private by `scripts/infra-check.mjs`.
 
 ---
 
 ## B3 (BLOCKER for automated E2E) — Privy login cannot be automated
+
+**Update 2026-10-12:** the Privy app credentials are verified working (`getAppSettings()` OK), but **test
+credentials are not enabled** for this app (`getTestAccessToken()` → *Test credentials not enabled*), so the
+server cannot mint tokens. A human browser login is required — the user will sign in with four real Privy
+accounts and sessions are then captured for automated runs.
 
 There is no `TEST_ACCOUNTS` and no saved `playwright/.auth/*.json`, and Privy email login needs an OTP that a
 human must receive. Without one of the following, Phase 4 (S1–S7) cannot authenticate and must be reported as
@@ -79,7 +82,8 @@ Option B — capture sessions once, headed:
 ## B4 — Privy dashboard allowed origin
 
 `http://localhost:3000` must be listed under the Privy app's allowed origins, or the browser SDK login is
-rejected. (Dashboard setting — cannot be changed from here.)
+rejected. (Dashboard setting — cannot be changed from here.) The frontend now runs on :3000, matching the
+documented origin.
 
 ---
 
@@ -92,12 +96,14 @@ are possible without it; the actual Monad deploy is left as exact commands in `d
 
 ---
 
-## B6 — missing frontend env
+## B6 — frontend env — ✅ RESOLVED
 
-There is no frontend `.env.local`. The frontend needs (public, non-secret):
+Frontend `.env.local` now holds the public app id and the API base URL:
 ```
-NEXT_PUBLIC_PRIVY_APP_ID=<same app id as the backend>
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+NEXT_PUBLIC_PRIVY_APP_ID=cmv2vvueq01hu0gjju69ht0wf   (public identifier)
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3010
 ```
-The agent can write the backend's `PRIVY_APP_ID` value into the frontend env (it is a public identifier), but
-will not print or commit it. `NEXT_PUBLIC_API_BASE_URL` and a backend port of 3001 are set by the agent.
+`@privy-io/react-auth` is installed and `PrivyProvider` wraps the app (email + wallet, embedded wallet for
+users without one, Monad testnet default chain). Backend `FRONTEND_ORIGIN` is `http://localhost:3000`.
+
+Port note: an unrelated container owns :3001, so the backend runs on :3010 and the frontend on :3000.

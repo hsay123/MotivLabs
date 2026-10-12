@@ -19,7 +19,7 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Welcome back."
-      subtitle="Sign in to reach your workspace. In this build, sign-in validates your details and takes you straight to role selection in preview mode."
+      subtitle="Sign in to reach your workspace. Use an email one-time code or a wallet — the session is verified by the platform API."
       aside={
         <ul className="space-y-3">
           {points.map((point) => (

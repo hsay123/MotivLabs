@@ -153,7 +153,7 @@ export const getDataSource = (): DataSource =>
   isApiConfigured() ? "live" : "preview";
 
 export const previewNotice =
-  "Interface preview — sample records are shown because no platform API is connected.";
+  "Sample records — this screen is not yet connected to the live platform API.";
 
 /* ---- Typed reads used by the product screens ----------------------- */
 
