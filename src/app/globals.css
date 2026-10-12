@@ -1,0 +1,300 @@
+@import "tailwindcss";
+
+/*
+  Motive Labs — design tokens
+  ------------------------------------------------------------------
+  Visual direction adapted from a restrained enterprise Physical-AI
+  reference: warm neutral surfaces, deep ink type, a single violet
+  accent, hairline borders and generous whitespace.
+
+  All values below feed Tailwind v4 utilities (bg-surface, text-ink,
+  rounded-lg, text-display-lg, …). The marketing site and the product
+  application share these tokens; the product app layers a denser
+  spacing rhythm on top (see .dense-* utilities at the bottom).
+*/
+
+@theme {
+  /* ---- Typography -------------------------------------------------- */
+  --font-display: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-code), ui-monospace, "SFMono-Regular", monospace;
+
+  /* Fluid display sizes. Line-height, tracking and weight are baked
+     in so headings stay consistent everywhere they are reused. */
+  --text-display-xl: clamp(2.75rem, 6.6vw, 6.125rem);
+  --text-display-xl--line-height: 0.98;
+  --text-display-xl--letter-spacing: -0.04em;
+  --text-display-xl--font-weight: 300;
+
+  --text-display-lg: clamp(2.125rem, 4.4vw, 3.75rem);
+  --text-display-lg--line-height: 1.02;
+  --text-display-lg--letter-spacing: -0.035em;
+  --text-display-lg--font-weight: 300;
+
+  --text-display-md: clamp(1.625rem, 2.8vw, 2.5rem);
+  --text-display-md--line-height: 1.1;
+  --text-display-md--letter-spacing: -0.03em;
+  --text-display-md--font-weight: 300;
+
+  --text-display-sm: clamp(1.375rem, 1.9vw, 1.75rem);
+  --text-display-sm--line-height: 1.2;
+  --text-display-sm--letter-spacing: -0.02em;
+  --text-display-sm--font-weight: 400;
+
+  --text-title: 1.125rem;
+  --text-title--line-height: 1.5;
+  --text-title--letter-spacing: -0.01em;
+  --text-title--font-weight: 500;
+
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.65;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.65;
+
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.6;
+
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.5;
+
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--line-height: 1.2;
+  --text-eyebrow--letter-spacing: 0.09em;
+  --text-eyebrow--font-weight: 500;
+
+  /* ---- Surfaces & ink (warm neutral) ------------------------------- */
+  --color-canvas: #faf9f7;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f2ef;
+  --color-surface-sunken: #efece8;
+
+  --color-ink: #16130e;
+  --color-ink-2: #423d35;
+  --color-ink-3: #6d675c;
+  --color-ink-4: #9a948a;
+
+  --color-line: #e8e5e0;
+  --color-line-strong: #d7d3cc;
+  --color-line-inverse: rgba(255, 255, 255, 0.14);
+
+  /* ---- Violet / indigo accent -------------------------------------- */
+  --color-accent-50: #f4f2ff;
+  --color-accent-100: #eae6ff;
+  --color-accent-200: #d7cfff;
+  --color-accent-300: #bcaeff;
+  --color-accent-400: #9b85fb;
+  --color-accent-500: #7c61f2;
+  --color-accent-600: #6547e4;
+  --color-accent-700: #5334c7;
+  --color-accent-800: #452ba2;
+  --color-accent-900: #2e1c6e;
+  --color-accent-950: #191043;
+
+  /* ---- Night (dark bands, footers, media wells) -------------------- */
+  --color-night: #14111f;
+  --color-night-2: #1d1930;
+  --color-night-3: #2a2444;
+  --color-night-ink: #f6f5fb;
+  --color-night-ink-2: rgba(246, 245, 251, 0.72);
+  --color-night-ink-3: rgba(246, 245, 251, 0.52);
+
+  /* ---- Status (never colour-only; always paired with text/icon) ---- */
+  --color-success-bg: #e7f4ec;
+  --color-success-fg: #16633c;
+  --color-success-line: #bfe0cd;
+
+  --color-pending-bg: #fbf1dd;
+  --color-pending-fg: #88590f;
+  --color-pending-line: #ecd6a8;
+
+  --color-danger-bg: #fceceb;
+  --color-danger-fg: #9f2f24;
+  --color-danger-line: #f2cfcb;
+
+  --color-info-bg: #eeebff;
+  --color-info-fg: #4b31c4;
+  --color-info-line: #d5ccff;
+
+  /* ---- Radii ------------------------------------------------------- */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+
+  /* ---- Motion ------------------------------------------------------ */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ---- Layout ------------------------------------------------------ */
+  --spacing-container: 80rem; /* 1280px content max width */
+  --spacing-container-wide: 90rem; /* 1440px */
+}
+
+/* ==================================================================
+   Base
+   ================================================================== */
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scroll-padding-top: 6rem;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-200);
+    color: var(--color-accent-950);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent-600);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Tabular figures wherever we show metrics, counts or timecodes. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+}
+
+/* ==================================================================
+   Reusable composites
+   ================================================================== */
+
+@layer components {
+  /* Eyebrow / kicker label used above section headings. */
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--text-eyebrow);
+    line-height: 1.2;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--color-ink-3);
+  }
+
+  /* Hairline-divided link, used in dropdowns and footers. */
+  .link-quiet {
+    color: var(--color-ink-2);
+    transition: color 0.15s var(--ease-out-soft);
+  }
+  .link-quiet:hover {
+    color: var(--color-ink);
+  }
+
+  /* Fine, low-contrast grid paper used behind media wells. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(22, 19, 14, 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(22, 19, 14, 0.045) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  .bg-grid-dark {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  /* A measured amount of blur is applied on sticky chrome. */
+  .backdrop-chrome {
+    background-color: color-mix(in srgb, var(--color-canvas) 82%, transparent);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+  }
+}
+
+/* ==================================================================
+   Utilities
+   ================================================================== */
+
+@layer utilities {
+  /* Constrain long-form copy to a comfortable measure. */
+  .measure {
+    max-width: 62ch;
+  }
+  .measure-tight {
+    max-width: 46ch;
+  }
+
+  /* Hide scrollbars on horizontal, keyboard-scrollable rails. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Entrance animation — disabled under reduced-motion below. */
+  .rise {
+    animation: rise 0.7s var(--ease-out-soft) both;
+  }
+  .rise-2 {
+    animation: rise 0.7s var(--ease-out-soft) 0.08s both;
+  }
+  .rise-3 {
+    animation: rise 0.7s var(--ease-out-soft) 0.16s both;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .rise,
+  .rise-2,
+  .rise-3 {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

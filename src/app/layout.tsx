@@ -1,0 +1,67 @@
+import type { Metadata, Viewport } from "next";
+import { DM_Sans, Inter, JetBrains_Mono } from "next/font/google";
+import "./globals.css";
+
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
+  display: "swap",
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+});
+
+const mono = JetBrains_Mono({
+  variable: "--font-mono-code",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  metadataBase: new URL("https://motivelabs.example"),
+  title: {
+    default: "Motive Labs — The data infrastructure for intelligent machines",
+    template: "%s · Motive Labs",
+  },
+  description:
+    "Motive Labs turns rights-cleared robotics footage into structured, reviewed annotation and training-ready datasets, with versioned records and traceable provenance.",
+  applicationName: "Motive Labs",
+  openGraph: {
+    title: "Motive Labs — The data infrastructure for intelligent machines",
+    description:
+      "Turn robotics footage into structured annotations, reviewed datasets, and traceable delivery workflows.",
+    siteName: "Motive Labs",
+    type: "website",
+  },
+  robots: { index: true, follow: true },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#faf9f7",
+  colorScheme: "light",
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html
+      lang="en"
+      className={`${dmSans.variable} ${inter.variable} ${mono.variable} h-full`}
+    >
+      <body className="flex min-h-full flex-col bg-canvas text-ink antialiased">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-accent-600 focus:px-4 focus:py-2 focus:text-body-sm focus:font-medium focus:text-white"
+        >
+          Skip to content
+        </a>
+        {children}
+      </body>
+    </html>
+  );
+}
