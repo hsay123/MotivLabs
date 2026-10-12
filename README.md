@@ -1,37 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MotivLabs (PhysicalData)
 
-## Getting Started
+A two-app monorepo for physical-world (robotics/media) annotation:
 
-First, run the development server:
+- **`/` (root)** — the Next.js product: marketing pages, the Privy login flow, and the
+  role workspaces (`buyer`, `contributor`, `reviewer`, `admin`). Product screens fetch
+  through a token-bound client (`src/lib/api/platform.ts` / `live.ts`).
+- **`/backend`** — the API-only Next.js app: Privy token verification, role guards,
+  projects/assets/tasks/jobs, reviews, appeals, receipts, and accepted-only exports.
+  It talks to Postgres/Storage with the service-role key.
+
+Served over **HTTPS on `localhost:3000`** in development (external-wallet SIWE requires
+it); the backend listens on `:3010`. Operational detail lives in
+[`docs/RUNBOOK.md`](docs/RUNBOOK.md).
+
+## Getting started
+
+Prerequisites: Node, and a filled-in `backend/.env.local` + root `.env.local`
+(see the `.env.example` files). Migrations are applied to the Supabase project.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# terminal 1 — backend
+cd backend && PORT=3010 npm run dev
+
+# terminal 2 — frontend (generates a local cert on first run)
+npm run dev            # https://localhost:3000
 ```
 
-Open [https://localhost:3000](https://localhost:3000) with your browser to see the result.
-(Development is served over **HTTPS** — required for external-wallet login; see `docs/RUNBOOK.md`.)
+The first Privy login creates a `contributor`. Promote accounts with
+`backend/scripts/set-role.ts` or the admin UI (`/workspace/admin`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy the examples — never commit `.env.local`:
 
-## Learn More
+- root `.env.example` → `.env.local` (public: `NEXT_PUBLIC_API_BASE_URL`,
+  `PLATFORM_API_URL`, `NEXT_PUBLIC_PRIVY_APP_ID`).
+- `backend/.env.example` → `backend/.env.local` (Supabase service role, Privy app
+  secret, CORS origin, tuning, optional settlement). `DEV_AUTH_BYPASS` must be
+  `false` for any run that counts as evidence.
 
-To learn more about Next.js, take a look at the following resources:
+## Checks
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# Backend
+cd backend && npm run typecheck && npm run lint && npm test && npm run build
+# Frontend
+npx tsc --noEmit && npm run lint && npm test && npm run build
+# E2E (real stack, Playwright)
+npx playwright test e2e/s1-auth-roles.spec.ts e2e/s2-buyer-job.spec.ts \
+  e2e/s3-contributor-claim.spec.ts e2e/s4-reviewer-lifecycle.spec.ts \
+  e2e/s5-receipts-export.spec.ts e2e/s6-lifecycle-admin.spec.ts
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Security posture
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Browser only ever holds the Privy access token + the public Privy app id.
+- API authorization is server-side (`requireRole`); `DEV_AUTH_BYPASS` is refused in
+  production.
+- Postgres RLS is enabled and `anon`/`authenticated` hold **no** table privileges;
+  `service_role` is used server-side only. See `backend/supabase/migrations/006_security_hardening.sql`.
+- Settlement is **mock** until the escrow contract is funded and verified; the UI
+  labels it as such. See [`docs/BLOCKED.md`](docs/BLOCKED.md).
