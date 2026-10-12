@@ -164,6 +164,32 @@ Persistence verified directly in Supabase (`execute_sql`, service role / MCP):
 
 Ownership: `GET /api/jobs/{id}` with a contributor token → **403 `FORBIDDEN`** (`loadJobForActor`).
 
+## S3 — Contributor claim + annotate + submit
+
+Status: **GREEN** (2026-10-12). `e2e/s3-contributor-claim.spec.ts` builds its own fixture over the real
+API (buyer token: project → two uploaded video assets → published job → two tasks) and then drives the
+contributor session:
+
+```
+$ npx playwright test e2e/s3-contributor-claim.spec.ts
+Running 2 tests using 1 worker
+  ✓ 1  claims a task, saves a draft, then submits it        (real queue -> claim -> draft -> submit)
+  ✓ 2  two contributors cannot claim the same task twice     (one 200 / one 409)
+2 passed
+```
+
+Persistence + invariants verified in Supabase (`execute_sql`):
+
+| Check | Evidence |
+| --- | --- |
+| Draft then submit | `task 67c556ab…` → `status = submitted`, `lease_owner = null`; one append-only `submissions` row `version = 1`, `schema_version = action-segments-v1`; the `task_drafts` row was cleared on submit |
+| Atomic claim | `task ed48afea…` → `status = claimed` with exactly **one** `lease_owner`; the losing racer got `409` (`UPDATE … WHERE status = 'available'` matched zero rows) |
+| Fast-submit flag | the fast submission is recorded (`is_fast_flag = true`), routing it to the human queue |
+
+Fix surfaced by the slice: submitting releases the lease, so `GET /api/tasks/{id}` now also admits a
+contributor who has already submitted to the task (read-only review of their own version), and
+`useClientQuery` keeps last-good data during a reload so the success state is not blanked.
+
 
 ## S3 — Contributor claim / label / submit
 

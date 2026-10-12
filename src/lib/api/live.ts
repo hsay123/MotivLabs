@@ -57,6 +57,7 @@ export function useClientQuery<T>(
 ): Query<T> {
   const { client } = useSession();
   const loaderRef = useRef(loader);
+  const keyRef = useRef(key);
 
   // Keep the latest loader in a ref so callers can build it inline without
   // re-fetching on every render; re-fetches are keyed explicitly below.
@@ -75,9 +76,18 @@ export function useClientQuery<T>(
   useEffect(() => {
     if (!enabled) return;
     let active = true;
+    const keyChanged = keyRef.current !== key;
+    keyRef.current = key;
 
     const load = async () => {
-      setState({ status: "loading", data: null, error: null });
+      // Re-fetching the same resource keeps the last good data on screen (so a
+      // mutation-triggered reload never blanks the view); a different key
+      // starts from a clean loading state.
+      setState((prev) =>
+        keyChanged || prev.status !== "ready"
+          ? { status: "loading", data: null, error: null }
+          : prev,
+      );
       try {
         const data = await loaderRef.current(client);
         if (active) setState({ status: "ready", data, error: null });

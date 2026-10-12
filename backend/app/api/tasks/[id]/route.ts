@@ -28,9 +28,25 @@ export async function GET(
       const { id } = await params;
 
       const row = await loadTask(id);
+      const supabase = getSupabase();
 
+      // A contributor may read a task they currently lease, or one they have
+      // already submitted to (so the workspace stays readable after a submit
+      // releases the lease, and a rejected/accepted task can be revisited).
       if (user.role === "contributor" && row.lease_owner !== user.id) {
-        throw HttpError.forbidden("You do not hold a lease on this task");
+        const { data: prior, error: priorError } = await supabase
+          .from("submissions")
+          .select("id")
+          .eq("task_id", id)
+          .eq("contributor_id", user.id)
+          .limit(1)
+          .maybeSingle();
+        if (priorError) {
+          throw HttpError.internal(`Failed to check submission: ${priorError.message}`);
+        }
+        if (!prior) {
+          throw HttpError.forbidden("You do not hold a lease on this task");
+        }
       }
 
       const objectKey = await getAssetObjectKey(row.asset_id as string);
@@ -40,7 +56,6 @@ export async function GET(
 
       // The job title and label list are needed to annotate (a contributor
       // cannot read the job). `gold_answer` is never selected here.
-      const supabase = getSupabase();
       const { data: job, error } = await supabase
         .from("jobs")
         .select("title, label_list")
