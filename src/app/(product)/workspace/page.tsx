@@ -8,18 +8,15 @@ import { workspaceRoles } from "@/lib/content/workspace";
 /**
  * Workspace entry point.
  *
- * The session decides where this lands: a buyer, contributor or reviewer is
- * taken straight to their own workspace; an admin starts on the buyer surface,
- * which lists every job.
+ * The session decides where this lands: each role is taken straight to its own
+ * workspace — an admin to the user-administration surface.
  */
 export default function WorkspaceHome() {
   const router = useRouter();
   const { user } = useSession();
 
   useEffect(() => {
-    const home =
-      user.role === "admin" ? "/workspace/buyer" : workspaceRoles[user.role].home;
-    router.replace(home);
+    router.replace(workspaceRoles[user.role].home);
   }, [router, user.role]);
 
   return (

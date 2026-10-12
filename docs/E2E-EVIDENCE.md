@@ -274,4 +274,46 @@ Product changes:
 
 ## S6 — Lifecycle + admin
 
-Status: NOT STARTED.
+Status: **GREEN** (2026-10-12). `e2e/s6-lifecycle-admin.spec.ts` builds two published video jobs over the
+real API and drives the buyer job screen plus the new admin screen. A dedicated throwaway account
+(`s6target`, captured with `scripts/capture-session-auto.mjs`) is the role-reassignment subject so no
+existing account is ever left changed:
+
+```
+$ npx playwright test e2e/s6-lifecycle-admin.spec.ts
+Running 6 tests using 1 worker
+  ✓ 1  buyer pauses, resumes and closes a published job from the job screen
+  ✓ 2  an illegal lifecycle transition is refused (409)
+  ✓ 3  lifecycle role boundaries: contributor 403, anonymous 401, admin allowed
+  ✓  4  admin reads are admin-only: contributor 403, anonymous 401, admin 200
+  ✓  5  the admin screen reassigns a role and the change persists
+  ✓  6  self-demotion is refused and a non-admin is kept out of /workspace/admin
+6 passed
+```
+
+Persistence + invariants verified in Supabase (`execute_sql`) and against the live API:
+
+| Check | Evidence |
+| --- | --- |
+| Lifecycle (buyer UI) | the buyer walked `published → paused → published → closed` from the job screen; DB shows the lifecycle job `status = closed` |
+| Lifecycle (admin) | admin paused and resumed a second published job (`POST /jobs/{id}/pause` → `paused`, `/resume` → `published`); DB shows it back at `published` |
+| Illegal transition | `pause`/`resume` on the now-closed job → **409 `CONFLICT`** (the guarded state machine) |
+| Lifecycle boundary | contributor → `POST /jobs/{id}/pause` **403**; anonymous → **401**; admin → **200** |
+| Admin reads | contributor → `GET /admin/users` **403**; anonymous **401**; admin **200** |
+| Role write | the admin screen reassigned the throwaway account `contributor → reviewer` and back; each write confirmed through `GET /admin/users`, and the account's final DB `role` is `contributor` |
+| Self-demotion | admin `PATCH /admin/users/{self}/role {role:"buyer"}` → **400 `BAD_REQUEST`** |
+| Shell guard | a contributor sent to `/workspace/admin` lands on `/workspace/contributor` |
+
+Product changes:
+
+- New admin workspace section: `workspaceRoles.admin` (`/workspace/admin`) plus the shell tab and the
+  non-admin redirect. `/workspace` now sends each role to `workspaceRoles[role].home`, so an admin lands on
+  the admin surface.
+- `AdminUsers` (`src/components/product/AdminUsers.tsx`) reads the real admin-only `GET /api/admin/users`
+  and reassigns roles through the real `PATCH /api/admin/users/{id}/role`; the API's self-demotion guard
+  surfaces inline rather than being hidden in the UI.
+
+Known gap (unchanged): there is **no separate admin action log** in this build, and the optional VRF
+commit-reveal **audit sample** remains unimplemented (the `audit_samples` table exists but the feature needs
+an oracle/funded key). The audit trail the product does have is the append-only review, appeal and
+payout-receipt record. This is stated in the admin screen itself, not left implicit.

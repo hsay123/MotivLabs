@@ -17,7 +17,10 @@ import { Info } from "@/components/ui/icons";
 import { cn } from "@/lib/utils/cn";
 
 const isWorkspaceRole = (value: string): value is WorkspaceRole =>
-  value === "buyer" || value === "contributor" || value === "reviewer";
+  value === "buyer" ||
+  value === "contributor" ||
+  value === "reviewer" ||
+  value === "admin";
 
 /**
  * Product shell.

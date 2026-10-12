@@ -5,7 +5,7 @@
  * so the active state is derived from the path, not hard-coded per page.
  */
 
-export type WorkspaceRole = "buyer" | "contributor" | "reviewer";
+export type WorkspaceRole = "buyer" | "contributor" | "reviewer" | "admin";
 
 export type WorkspaceNavItem = {
   label: string;
@@ -57,15 +57,24 @@ export const workspaceRoles: Record<WorkspaceRole, WorkspaceRoleConfig> = {
       { label: "Disputes", href: "/workspace/reviewer/disputes" },
     ],
   },
+  admin: {
+    key: "admin",
+    label: "Admin",
+    job: "Administer users and roles; inspect any workspace.",
+    home: "/workspace/admin",
+    nav: [{ label: "Users", href: "/workspace/admin" }],
+  },
 };
 
 export const workspaceOrder: WorkspaceRole[] = [
   "buyer",
   "contributor",
   "reviewer",
+  "admin",
 ];
 
 export function roleFromPath(pathname: string): WorkspaceRole {
+  if (pathname.startsWith("/workspace/admin")) return "admin";
   if (pathname.startsWith("/workspace/contributor")) return "contributor";
   if (pathname.startsWith("/workspace/reviewer")) return "reviewer";
   return "buyer";
