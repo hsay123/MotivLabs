@@ -1,119 +1,155 @@
-# Staging plan — PhysicalData
+# Staging deployment — PhysicalData / MotivLabs
 
-Status: **plan only, nothing deployed.** This records the exact requirements to
-stand up a private preview/staging environment plus the credentials still
-needed. No secret values are written here.
+Status: **config prepared, not yet deployed.** The frontend (Vercel), the
+backend (Render) and the Monad-testnet contract are all ready to ship; each is
+blocked on one credential/secret that must be supplied outside git. No secret
+values are written here.
 
 ## 1. Topology
 
-Three moving parts:
-
-| Part | What it is | Sizing |
+| Part | What it is | Host |
 | --- | --- | --- |
-| **Frontend** | repo root, Next.js app (`npm run build` / `npm start`) | 1 web service |
-| **Backend** | `backend/`, API-only Next.js app (`npm run build` / `npm start`) | 1 web service, `PORT` env |
-| **Supabase** | existing project `sfebambrdcfqrdmetflw` — Postgres + Storage | managed |
-| **Privy** | existing app id | managed |
+| **Frontend** | repo root, Next.js app (`src/`) | Vercel, project root = repo root |
+| **Backend** | `backend/`, API-only Next.js app | Render web service (Node), `render.yaml` |
+| **Database + Storage** | Supabase project `sfebambrdcfqrdmetflw` | managed (shared with dev) |
+| **Auth** | Privy app | managed |
+| **Settlement** | `contracts/JobEscrow.sol` | Monad testnet (chain 10143) |
 
-A private preview can run both services on one host (two processes/ports) or
-two hosts. Staging should use the **same Supabase project** until a separate
-staging project exists, which means staging data is shared with development —
-acceptable for a preview, called out in §6.
+The browser talks only to the frontend origin. `next.config.ts` proxies
+`/platform/*` to the backend server-side (Pattern A), so there are no
+cross-origin browser requests in normal use.
 
-## 2. Hosting requirements
+## 2. As-built hosting config
 
-- Node 20+ (matches the local toolchain), each app `npm ci && npm run build`.
-- Both services must be reachable over **HTTPS** (wallet SIWE + secure context).
-- The backend needs `typecheck`/`lint`/`test` in CI, not at boot.
-- No serverless-specific assumptions; the backend is a single Next server.
-- Persistent/reactive features are not used (no Realtime, no queues).
+### 2.1 Vercel — frontend (`vercel.json`)
 
-Recommended (Vercel): two projects in the same repo (`/` and `/backend`), each
-with the env below; or one container running both. Either is fine.
+| Setting | Value |
+| --- | --- |
+| Root Directory | `.` (repo root) |
+| Framework | Next.js (auto) |
+| Install Command | `npm ci` |
+| Build Command | `npm run build` |
+| Output | Next.js default (`.next`) |
+| Node | 22.x |
 
-## 3. Backend environment (names only)
+Environment variables (build-time + runtime):
 
-| Var | Required | Notes |
-| --- | --- | --- |
-| `SUPABASE_URL` | ✅ | project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | **secret**, server-only |
-| `SUPABASE_STORAGE_BUCKET` | ✅ | default `media` |
-| `FRONTEND_ORIGIN` | ✅ | exact staging frontend origin, e.g. `https://app-staging…` |
-| `PRIVY_APP_ID` | ✅ | from Privy dashboard |
-| `PRIVY_APP_SECRET` | ✅ | **secret**, server-only |
-| `PRIVY_VERIFICATION_KEY` | ➕ | SPKI PEM; when set, tokens verify offline (fewer Privy API calls) |
-| `DEV_AUTH_BYPASS` | ✅ | **must be `false`**; production refuses `true` at startup |
-| `LEASE_MINUTES`, `AI_CONFIDENCE_THRESHOLD`, `GOLD_IOU_THRESHOLD`, `GOLD_SEGMENT_MS_TOLERANCE`, `FAST_SUBMIT_THRESHOLD_SECONDS` | ➕ | defaults are fine |
-| `JOB_ESCROW_ADDRESS`, `MONAD_RPC_URL` | ➕ | leave **unset** to keep mock settlement explicit |
+| Var | Value |
+| --- | --- |
+| `NEXT_PUBLIC_API_BASE_URL` | `/platform` |
+| `PLATFORM_API_URL` | `https://motivelabs-api.onrender.com` (the Render URL) |
+| `NEXT_PUBLIC_PRIVY_APP_ID` | the Privy app id (public) |
 
-## 4. Frontend environment (names only)
+Deploy: `vercel link` (once) then `vercel deploy --prod`.
 
-| Var | Required | Notes |
-| --- | --- | --- |
-| `NEXT_PUBLIC_PRIVY_APP_ID` | ✅ | same app id as backend; public |
-| `NEXT_PUBLIC_API_BASE_URL` | ✅ | `/platform` (same-origin proxy) *or* the backend origin |
-| `PLATFORM_API_URL` | ✅ when proxying | server-side rewrite target; default `http://localhost:3010` |
+### 2.2 Render — backend (`render.yaml`)
 
-Pattern A (**recommended, no browser CORS**): host the frontend at
-`https://app-staging…`, set `NEXT_PUBLIC_API_BASE_URL=/platform` and
-`PLATFORM_API_URL=https://api-staging…`. The browser only talks to the frontend
-origin; `next.config.ts` proxies `/platform/*` to the backend server-side.
+| Setting | Value |
+| --- | --- |
+| Type / Runtime | Web service / Node |
+| Root Directory | `backend` |
+| Build Command | `npm ci && npm run build` |
+| Start Command | `npm run start` |
+| Health Check Path | `/api/health` |
+| Region / Plan | `singapore` / `free` (spins down when idle) |
+| Auto Deploy | on push to `main` |
 
-Pattern B: `NEXT_PUBLIC_API_BASE_URL=https://api-staging…`; the browser then
-calls the backend directly, so the backend's `FRONTEND_ORIGIN` must equal the
-frontend origin and CORS is exercised.
+Environment variables are declared in `render.yaml`; secrets use
+`sync: false` and are entered in the Render dashboard:
 
-## 5. Domain-specific Privy + CORS
+| Var | Kind |
+| --- | --- |
+| `SUPABASE_URL` | value |
+| `SUPABASE_SERVICE_ROLE_KEY` | **secret** |
+| `SUPABASE_STORAGE_BUCKET` | `media` |
+| `FRONTEND_ORIGIN` | the Vercel origin (set after the frontend deploys) |
+| `PRIVY_APP_ID` | value |
+| `PRIVY_APP_SECRET` | **secret** |
+| `PRIVY_VERIFICATION_KEY` | SPKI PEM, optional |
+| `DEV_AUTH_BYPASS` | `false` |
+| `MONAD_RPC_URL` | `https://testnet-rpc.monad.xyz` |
+| `JOB_ESCROW_ADDRESS` | set after the contract deploy |
+| `SETTLEMENT_PRIVATE_KEY` | **secret** (the relayer key) |
 
-1. **Privy dashboard → allowed origins**: add the staging frontend origin.
-   The SIWE `domain`/`uri` derive from the browser origin, so it must match.
-2. **Backend `FRONTEND_ORIGIN`**: the staging frontend origin (CORS allow-list).
-   Pattern A: this is still set, but the proxy means the browser rarely sends it.
-3. **Redirect URLs** (if email/OTP is enabled): add the staging origin.
-4. Keep Privy's production app id separate if you want isolated sessions.
+Deploy paths: Render Dashboard → New → Blueprint (uses `render.yaml`), or the
+Render CLI, or the Render MCP `create_web_service` tool.
 
-## 6. Access / credentials still needed
+## 3. Settlements on Monad testnet
 
-- [ ] **Hosting account** with permission to create 2 services + set env vars
-      (Vercel team, Fly/Render workspace, or a VM). Not yet provided.
-- [ ] **Staging domain(s)** if not using the host's default URL.
-- [ ] **Privy dashboard access** to add the staging origin and (optionally)
-      copy the verification key.
-- [x] Supabase project + service-role key (already local in `.gitignored` files).
-- [ ] Decision: **shared Supabase project** (fast preview) vs a **separate
-      staging project**. A separate project needs migrations 001–006 + a `media`
-      bucket; `backend/supabase/all_migrations.sql` is the one-shot bundle.
+Contract: `contracts/JobEscrow.sol` (native MON, relayer-gated, budget-capped,
+one payout per task). See `contracts/README.md`.
 
-## 7. Pre-deploy checklist
+Deployer / relayer wallet generated locally (key in git-ignored
+`contracts/.env` and `backend/.env.local` only):
 
-1. Confirm migration 006 is applied (or run `all_migrations.sql`) on the target DB.
-2. Confirm the `media` bucket exists, private, with the 006 limits; run the
-   security advisors and expect only `rls_enabled_no_policy` (INFO).
-3. Set the env tables above; never reuse dev secrets in the browser.
-4. Deploy both services behind HTTPS, **access-controlled** (host deployment
-   protection / basic auth) until §8 passes.
-5. Do not add a funded key or mainnet config yet.
+```
+0x8084a4eD8849B7B12E57f9e443ECe05E89838767
+```
 
-## 8. Smoke test (real role accounts)
+**Blocker:** this address has no testnet MON. Fund it from the Monad faucet
+(https://faucet.monad.xyz — paste the address), then:
 
-Run, in order, and assert the error edges:
+```bash
+cd contracts
+export DEPLOYER_PRIVATE_KEY=$(grep '^DEPLOYER_PRIVATE_KEY=' .env | cut -d= -f2-)
+forge script script/Deploy.s.sol:DeployJobEscrow --rpc-url monad_testnet --broadcast
+```
 
-1. Anonymous `GET /api/jobs` → **401**; `/receipts/<id>` public route → 200.
-2. Buyer login → create project → signed upload → asset → job with tasks →
-   publish (real Supabase rows).
-3. Contributor → available tasks → claim → save draft → submit.
-   Second contributor claiming the same task → **409**.
-4. Reviewer → `accept` (or `revise` → resubmit v2 → reject → appeal → upheld).
-   Contributor attempting a review decision → **403**.
-5. Receipt is public and labelled mock (`is_mock = true`); export only accepted
-   versions and contains no contributor identity. Buyer-only export; a
-   non-owner contributor → **403**.
-6. Admin: pause/resume/close lifecycle; illegal transition → **409**;
-   role PATCH persists; self-demotion → **400**.
-7. Confirm the staged DB matches the expected writes (read-only SQL).
+Record the printed `JobEscrow: 0x…` address and set it as
+`JOB_ESCROW_ADDRESS` on Render (and in `backend/.env.local` for a local real
+run). Set `SETTLEMENT_PRIVATE_KEY` to the relayer key on Render.
 
-## 9. Explicitly out of scope for this change
+Real settlement turns on only when `JOB_ESCROW_ADDRESS` + `MONAD_RPC_URL` +
+`SETTLEMENT_PRIVATE_KEY` are all set; otherwise the API keeps the mock and
+receipts stay `is_mock = true`.
 
-- No smart-contract work.
-- No production cutover; nothing merged automatically.
-- No funded testnet key requested.
+Before the demo, fund the job being shown:
+
+```bash
+export JOB_ESCROW_ADDRESS=0x…
+export JOB_ID_HASH=$(cast keccak "$JOB_UUID")
+export JOB_FUND_WEI=100000000000000000   # 0.1 MON
+forge script script/FundJob.s.sol:FundJob --rpc-url monad_testnet --broadcast
+```
+
+## 4. Privy + CORS for the staging origin
+
+1. Privy dashboard → allowed origins: add the Vercel origin
+   (`https://<project>.vercel.app`). SIWE `domain`/`uri` derive from the
+   browser origin, so it must match exactly.
+2. Backend `FRONTEND_ORIGIN` → the same Vercel origin (CORS allow-list).
+3. If email/OTP is enabled, add the origin to allowed redirect URLs.
+
+## 5. Pre-deploy checklist
+
+1. Migrations 001–006 applied on Supabase (they are); advisors show only
+   `rls_enabled_no_policy` (INFO).
+2. `media` bucket exists, private, with the 006 limits.
+3. Set all env vars above; never put a server secret in a `NEXT_PUBLIC_*` var.
+4. Deploy backend, then frontend, then set `FRONTEND_ORIGIN` to the frontend
+   origin and redeploy the backend.
+5. Do not use a mainnet key anywhere.
+
+## 6. Smoke test (real role accounts)
+
+1. `GET https://<api>.onrender.com/api/health` → `200 {status:"ok"}`.
+2. Anonymous API read → **401**; a public receipt route → 200.
+3. Buyer login → project → signed upload → asset → job + tasks → publish.
+4. Contributor → claim → draft → submit; second claimant → **409**.
+5. Reviewer → accept (or revise/reject/appeal); contributor decision → **403**.
+6. Settlement: when the escrow is configured and the job funded, accepting a
+   task pays the contributor on Monad testnet and the receipt shows
+   `is_mock = false` with the real tx hash; otherwise it is labelled mock.
+7. Export contains only accepted versions and no contributor identity;
+   non-owner → **403**.
+
+## 7. Known limitations
+
+- Shared Supabase project: staging and dev share data. A separate project needs
+  migrations 001–006 + the `media` bucket (`backend/supabase/all_migrations.sql`).
+- Settlement is not transactional with the database: if the DB write fails
+  after a successful on-chain payout, the contract's `AlreadySettled` guard
+  prevents a silent re-pay, and the task needs manual reconciliation. Fine for
+  a testnet demo; a production build should write a pending receipt first.
+- Render free-plan services spin down when idle, so the first request after a
+  pause is slow.
