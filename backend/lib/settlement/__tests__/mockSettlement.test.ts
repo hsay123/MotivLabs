@@ -10,11 +10,13 @@ const service = new MockSettlementService();
 describe("MockSettlementService", () => {
   it("records mock settlement with a deterministic tx hash", async () => {
     const input = {
+      jobId: "job-a",
       taskId: "task-a",
       submissionId: "sub-a",
       annotationHash: "0xannot",
       policyHash: "0xpolicy",
       amount: "1.5",
+      payeeAddress: "0x1111111111111111111111111111111111111111",
     };
     const first = await service.settle(input);
     const second = await service.settle(input);
@@ -26,10 +28,12 @@ describe("MockSettlementService", () => {
 
   it("derives a different hash for a different task", async () => {
     const base = {
+      jobId: "job-a",
       submissionId: "sub-a",
       annotationHash: "0xannot",
       policyHash: "0xpolicy",
       amount: "1.5",
+      payeeAddress: "0x1111111111111111111111111111111111111111",
     };
     const a = await service.settle({ ...base, taskId: "task-a" });
     const b = await service.settle({ ...base, taskId: "task-b" });
