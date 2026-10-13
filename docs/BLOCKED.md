@@ -123,8 +123,12 @@ Exact action needed from a human:
 
 Before enabling anything, run the backend fail-closed preflight (`cd backend && npm run
 settlement:preflight`). It passes only when the RPC reports chain 10143, the escrow has code, the
-configured signer is an allow-listed relayer that is **not** the owner, and no configured address is on
-the forbidden list. Any failing check keeps `MockSettlementService` and `is_mock = true`.
+escrow reports `SETTLEMENT_ABI_VERSION = 2` (so a stale pre-hardening deployment is rejected), the
+configured signer is an allow-listed relayer that is **not** the owner, and
+`SETTLEMENT_FORBIDDEN_ADDRESS` is present with no configured address on it. The backend enforces
+this same preflight **at runtime** before selecting the chain service, and it always merges a
+built-in list containing the exposed address, so clearing or mis-setting the env variable can
+never re-enable it. Any failing check keeps `MockSettlementService` and `is_mock = true`.
 
 Until then, `JOB_ESCROW_ADDRESS` stays unset and receipts stay `is_mock = true`.
 

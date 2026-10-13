@@ -29,7 +29,27 @@ import type { Env } from "@/lib/env";
 /** Monad testnet — the only chain settlement is allowed to run on. */
 export const MONAD_TESTNET_CHAIN_ID = 10143;
 
-/** The two admin views the preflight needs from the escrow. */
+/**
+ * Settlement ABI revision the backend requires of the deployed escrow. The
+ * hardened `JobEscrow` reports it via `SETTLEMENT_ABI_VERSION()`. Any other
+ * value (including a revert from a pre-hardening contract) fails closed, so a
+ * stale deployment can never receive real payouts even if it happens to expose
+ * `owner()`/`relayers()`.
+ */
+export const SETTLEMENT_ABI_VERSION_EXPECTED = BigInt(2);
+
+/**
+ * Addresses that must never act as the settlement signer or the escrow owner,
+ * *regardless* of environment configuration. The entry below is the key exposed
+ * in a screenshot alongside the legacy single-role escrow. It is enforced in
+ * code so blanking, clearing, or mis-setting `SETTLEMENT_FORBIDDEN_ADDRESS` can
+ * never re-enable a known-compromised address.
+ */
+export const COMPROMISED_SETTLEMENT_ADDRESSES: readonly string[] = [
+  "0x8084a4ed8849b7b12e57f9e443ece05e89838767",
+];
+
+/** The admin/version views the preflight needs from the escrow. */
 export const jobEscrowAdminAbi = [
   {
     type: "function",
@@ -44,6 +64,13 @@ export const jobEscrowAdminAbi = [
     stateMutability: "view",
     inputs: [{ name: "", type: "address" }],
     outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "SETTLEMENT_ABI_VERSION",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
   },
 ] as const;
 
@@ -75,10 +102,13 @@ export interface PreflightDeps {
   getBytecode(address: Address): Promise<Hex | undefined>;
   getOwner(address: Address): Promise<Address>;
   isRelayer(address: Address, who: Address): Promise<boolean>;
+  getAbiVersion(address: Address): Promise<bigint>;
 }
 
 function errorMessage(cause: unknown): string {
-  return cause instanceof Error ? cause.message : String(cause);
+  const message = cause instanceof Error ? cause.message : String(cause);
+  // viem throws multi-line errors with a call trace; keep only the headline.
+  return message.split("\n")[0];
 }
 
 /** Real deps backed by the configured Monad RPC. */
@@ -96,15 +126,23 @@ export function chainPreflightDeps(rpcUrl: string): PreflightDeps {
         functionName: "relayers",
         args: [who],
       }),
+    getAbiVersion: (address) =>
+      client.readContract({
+        address,
+        abi: jobEscrowAdminAbi,
+        functionName: "SETTLEMENT_ABI_VERSION",
+      }),
   };
 }
 
 /**
  * Run every settlement safety check. Read-only; never sends a transaction.
  *
- * `SETTLEMENT_FORBIDDEN_ADDRESS` is an optional comma-separated deny-list of
- * addresses that must never be the signer or the owner (e.g. a key known to
- * have been exposed). When set, a match fails the preflight.
+ * `SETTLEMENT_FORBIDDEN_ADDRESS` is a **required** comma-separated deny-list of
+ * addresses that must never be the signer or the owner (e.g. a key known to have
+ * been exposed). A missing/empty value fails closed, and the code-level
+ * `COMPROMISED_SETTLEMENT_ADDRESSES` are always merged in, so a match fails the
+ * preflight even if the environment variable is mis-set.
  */
 export async function runSettlementPreflight(
   env: Env,
@@ -181,6 +219,28 @@ export async function runSettlementPreflight(
       push("owner", false, `could not read escrow owner: ${errorMessage(cause)}`);
     }
 
+    // The escrow must be the hardened revision, not a stale deployment that
+    // merely exposes owner()/relayers(). A mismatch or revert fails closed.
+    try {
+      const version = await client.getAbiVersion(escrow as Address);
+      const current = version === SETTLEMENT_ABI_VERSION_EXPECTED;
+      push(
+        "escrow_abi_version",
+        current,
+        current
+          ? `escrow reports SETTLEMENT_ABI_VERSION ${version}`
+          : `escrow reports SETTLEMENT_ABI_VERSION ${version} (expected ` +
+              `${SETTLEMENT_ABI_VERSION_EXPECTED}); redeploy the hardened JobEscrow`,
+      );
+    } catch (cause) {
+      push(
+        "escrow_abi_version",
+        false,
+        "escrow does not report SETTLEMENT_ABI_VERSION (stale or unknown " +
+          `contract): ${errorMessage(cause)}`,
+      );
+    }
+
     if (signer && owner) {
       push(
         "owner_neq_relayer",
@@ -205,24 +265,38 @@ export async function runSettlementPreflight(
     }
   }
 
-  // Optional deny-list of known-compromised addresses.
-  const forbidden = (env.SETTLEMENT_FORBIDDEN_ADDRESS ?? "")
+  // The deny-list is required: an operator must explicitly enumerate
+  // known-compromised addresses before real money can move. The code-level list
+  // is always merged in, so the exposed signer is rejected even if the env value
+  // is blank, unrelated, or accidentally cleared.
+  const configuredForbidden = (env.SETTLEMENT_FORBIDDEN_ADDRESS ?? "")
     .split(",")
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
-  if (forbidden.length > 0) {
-    const used = [signer, owner]
-      .filter((value): value is Address => Boolean(value))
-      .map((value) => value.toLowerCase())
-      .filter((value) => forbidden.includes(value));
-    push(
-      "not_forbidden",
-      used.length === 0,
-      used.length === 0
-        ? "signer and owner are not on the forbidden list"
-        : `configured addresses are on the forbidden list: ${used.join(", ")}`,
-    );
-  }
+  push(
+    "forbidden_configured",
+    configuredForbidden.length > 0,
+    configuredForbidden.length > 0
+      ? `SETTLEMENT_FORBIDDEN_ADDRESS lists ${configuredForbidden.length} address(es)`
+      : "SETTLEMENT_FORBIDDEN_ADDRESS must list at least one known-compromised " +
+          "address before real settlement can be enabled",
+  );
+
+  const forbidden = new Set<string>([
+    ...COMPROMISED_SETTLEMENT_ADDRESSES.map((address) => address.toLowerCase()),
+    ...configuredForbidden,
+  ]);
+  const used = [signer, owner]
+    .filter((value): value is Address => Boolean(value))
+    .map((value) => value.toLowerCase())
+    .filter((value) => forbidden.has(value));
+  push(
+    "not_forbidden",
+    used.length === 0,
+    used.length === 0
+      ? "signer and owner are not on the forbidden list"
+      : `configured addresses are on the forbidden list: ${used.join(", ")}`,
+  );
 
   const ok = checks.every((check) => check.ok);
   return {
