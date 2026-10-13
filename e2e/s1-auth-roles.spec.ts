@@ -1,21 +1,27 @@
 /**
- * S1 — Auth & roles on the real backend.
+ * S1 — Auth, role gating and the required onboarding gate (real stack).
  *
- * What this proves (nothing mocked):
- *  1. An unauthenticated visitor to a product route is sent to /login.
- *  2. With a real Privy session, /workspace resolves the live profile from
- *     GET /api/me (the shell renders `user.email · user.role`), redirects to
- *     the contributor workspace, and the session survives a reload.
- *  3. Role gating is real: a contributor who visits /workspace/buyer is
- *     redirected back to their own workspace.
- *  4. Sign out ends the session and returns to /login.
+ * What this proves (nothing mocked, nothing stubbed):
+ *  1. An unauthenticated visitor to any product URL is sent to /login.
+ *  2. A completed account resolves the real profile from /api/me and lands on
+ *     its own workspace; a contributor cannot open the buyer workspace by URL.
+ *  3. The onboarding gate is authoritative: an authenticated account that has
+ *     not finished onboarding is redirected to /onboarding from a direct
+ *     workspace URL (including /workspace/contributor), before any workspace
+ *     content renders, and the chooser offers both account types.
+ *  4. A completed account opening /onboarding directly is bounced into its own
+ *     workspace instead of seeing the chooser again.
+ *  5. Sign out ends the session and returns to /login.
  *
- * Prereq: playwright/.auth/contributor.json (see scripts/capture-sessions.mjs).
+ * Prereqs: playwright/.auth/contributor.json (completed account) and
+ *          playwright/.auth/contributor2.json (incomplete account), captured
+ *          with scripts/capture-sessions.mjs.
  * Run: npx playwright test e2e/s1-auth-roles.spec.ts
  */
 import { test, expect } from "playwright/test";
 
 const CONTRIBUTOR = "./playwright/.auth/contributor.json";
+const CONTRIBUTOR_INCOMPLETE = "./playwright/.auth/contributor2.json";
 
 test.describe("unauthenticated gate", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
@@ -24,6 +30,11 @@ test.describe("unauthenticated gate", () => {
     await page.goto("/workspace");
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("button", { name: /sign in/i }).first()).toBeVisible();
+  });
+
+  test("sends a direct workspace URL to /login too", async ({ page }) => {
+    await page.goto("/workspace/contributor");
+    await expect(page).toHaveURL(/\/login$/);
   });
 });
 
@@ -59,10 +70,52 @@ test.describe("contributor session (real Privy session)", () => {
     await expect(page).toHaveURL(/\/workspace\/contributor$/, { timeout: 20_000 });
   });
 
+  test("a completed account is never shown the onboarding chooser", async ({ page }) => {
+    await page.goto("/onboarding");
+    await expect(page).toHaveURL(/\/workspace\/contributor$/, { timeout: 20_000 });
+    await expect(page.getByText(/· contributor$/)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /here to contribute/i }),
+    ).toHaveCount(0);
+  });
+
   test("sign out ends the session and returns to /login", async ({ page }) => {
     await page.goto("/workspace/contributor");
     await expect(page.getByText(/· contributor$/)).toBeVisible();
     await page.getByRole("button", { name: /sign out/i }).click();
     await expect(page).toHaveURL(/\/login$/, { timeout: 20_000 });
+  });
+});
+
+test.describe("onboarding gate (incomplete account)", () => {
+  test.use({ storageState: CONTRIBUTOR_INCOMPLETE });
+
+  test("a direct contributor URL redirects to /onboarding with both choices", async ({
+    page,
+  }) => {
+    await page.goto("/workspace/contributor");
+    await expect(page).toHaveURL(/\/onboarding$/, { timeout: 20_000 });
+
+    // The chooser is reachable and offers both account types.
+    await expect(
+      page.getByRole("button", { name: /here for my company/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /here to contribute/i }),
+    ).toBeVisible();
+    // No workspace content ever rendered for the incomplete account.
+    await expect(
+      page.getByText("Signed in with a platform-verified session"),
+    ).toHaveCount(0);
+  });
+
+  test("an incomplete account cannot open the buyer workspace content", async ({
+    page,
+  }) => {
+    await page.goto("/workspace/buyer");
+    await expect(page).toHaveURL(/\/onboarding$/, { timeout: 20_000 });
+    await expect(
+      page.getByText("Signed in with a platform-verified session"),
+    ).toHaveCount(0);
   });
 });
