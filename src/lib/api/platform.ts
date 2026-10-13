@@ -101,6 +101,8 @@ export const onboardingCompleteRequestSchema = z.object({
 export const onboardingCompleteResponseSchema = z.object({
   onboarding_completed: z.boolean(),
   redirect: z.string(),
+  account_type: z.enum(["buyer", "contributor"]).nullable().optional(),
+  organization_id: z.string().nullable().optional(),
 });
 
 export type OnboardingCompleteRequest = z.infer<typeof onboardingCompleteRequestSchema>;

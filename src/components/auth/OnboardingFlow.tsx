@@ -84,43 +84,75 @@ export function OnboardingFlow() {
     return true;
   }, []);
 
-  const handleSubmit = async () => {
-    if (!selected || (selected === "buyer" && !validateOrgName(orgName))) return;
-    if (!client) {
-      setError("Platform client not available. Please refresh the page.");
-      return;
-    }
+  const submitChoice = useCallback(
+    async (accountType: AccountType, organizationName?: string) => {
+      if (!client) {
+        setError("Platform client not available. Please refresh the page.");
+        setStep("error");
+        return;
+      }
 
-    setStep("submitting");
-    setError(null);
+      setSelected(accountType);
+      setStep("submitting");
+      setError(null);
 
-    try {
-      const data = await client.post(
-        onboardingCompleteResponseSchema,
-        platformPaths.onboardingComplete(),
-        {
-          body: {
-            account_type: selected,
-            organization_name: selected === "buyer" ? orgName.trim() : undefined,
-          },
+      try {
+        const data = await client.post(
+          onboardingCompleteResponseSchema,
+          platformPaths.onboardingComplete(),
+          {
+            body: {
+              account_type: accountType,
+              organization_name:
+                accountType === "buyer" ? organizationName?.trim() : undefined,
+            },
+          }
+        );
+
+        if (data.onboarding_completed && data.redirect) {
+          setStep("success");
+          setTimeout(() => {
+            window.location.href = data.redirect;
+          }, 800);
+        } else {
+          setError("Onboarding did not complete successfully");
+          setStep("error");
         }
-      );
-
-      if (data.onboarding_completed && data.redirect) {
-        setStep("success");
-        setTimeout(() => {
-          window.location.href = data.redirect;
-        }, 800);
-      } else {
-        setError("Onboarding did not complete successfully");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Something went wrong";
+        setError(message);
         setStep("error");
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Something went wrong";
-      setError(message);
-      setStep("error");
+    },
+    [client]
+  );
+
+  const handleSelect = useCallback(
+    (accountType: AccountType) => {
+      setSelected(accountType);
+      setError(null);
+      if (accountType === "buyer") {
+        setStep("org-name");
+      } else {
+        void submitChoice("contributor");
+      }
+    },
+    [submitChoice]
+  );
+
+  const handleBuyerSubmit = useCallback(() => {
+    if (!validateOrgName(orgName)) return;
+    void submitChoice("buyer", orgName);
+  }, [orgName, submitChoice, validateOrgName]);
+
+  const handleContinue = useCallback(() => {
+    if (!selected) return;
+    if (selected === "buyer") {
+      setStep("org-name");
+      return;
     }
-  };
+    void submitChoice("contributor");
+  }, [selected, submitChoice]);
 
   const handleRetry = () => {
     setStep(selected === "buyer" ? "org-name" : "choose");
@@ -210,13 +242,7 @@ export function OnboardingFlow() {
                       key={account.key}
                       type="button"
                       aria-pressed={isActive}
-                      onClick={() => {
-                        setSelected(account.key);
-                        setError(null);
-                        if (step === "choose") {
-                          setStep(account.key === "buyer" ? "org-name" : "submitting");
-                        }
-                      }}
+                      onClick={() => handleSelect(account.key)}
                       className={cn(
                         "group relative flex flex-col rounded-2xl border p-6 text-left transition-all duration-300",
                         isActive
@@ -277,22 +303,6 @@ export function OnboardingFlow() {
                 })}
               </div>
             </fieldset>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <div className="flex items-start gap-2.5 rounded-xl border border-line bg-surface-muted p-4">
-                <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-ink-4" />
-                <p className="text-caption text-ink-3">
-                  A person can hold multiple roles (contributor, reviewer), but never
-                  review their own submissions.
-                </p>
-              </div>
-              <div className="flex items-start gap-2.5 rounded-xl border border-line bg-surface-muted p-4">
-                <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-ink-4" />
-                <p className="text-caption text-ink-3">
-                  Your choice is saved to your account. You won&apos;t see this screen again.
-                </p>
-              </div>
-            </div>
           </div>
 
           {selected === "buyer" && step === "org-name" && (
@@ -358,7 +368,7 @@ export function OnboardingFlow() {
                   </Button>
                   <Button
                     size="lg"
-                    onClick={handleSubmit}
+                    onClick={handleBuyerSubmit}
                     disabled={!validateOrgName(orgName)}
                     className="flex-1"
                   >
@@ -441,8 +451,9 @@ export function OnboardingFlow() {
             <div className="flex items-start gap-2.5 rounded-xl border border-line bg-surface-muted p-4">
               <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-ink-4" />
               <p className="text-caption text-ink-3">
-                A person can hold multiple roles (contributor, reviewer), but never
-                review their own submissions.
+                Your account type is stored on the platform when you continue, and you
+                won&apos;t be asked again. Reviewer and admin access are granted by the
+                platform, never chosen here.
               </p>
             </div>
             <div className="flex items-start gap-2.5 rounded-xl border border-line bg-surface-muted p-4">
@@ -489,8 +500,8 @@ export function OnboardingFlow() {
                   <Button
                     className="w-full"
                     size="lg"
-                    disabled={step === "submitting" || (selected === "buyer" && !orgName.trim())}
-                    onClick={handleSubmit}
+                    disabled={!selected || step === "submitting"}
+                    onClick={handleContinue}
                   >
                     {step === "submitting" ? (
                       <>
@@ -567,7 +578,9 @@ export function OnboardingFlow() {
                 className="text-danger-fg hover:text-danger-fg/70 p-1"
                 aria-label="Dismiss error"
               >
-                \u2715
+                <span aria-hidden className="text-base leading-none">
+                  ✕
+                </span>
               </button>
             </div>
           </div>
