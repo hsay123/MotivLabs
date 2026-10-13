@@ -10,7 +10,7 @@ import { Info } from "@/components/ui/icons";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "Motive Labs builds quality-assured data operations for physical AI — managed delivery, inspectable quality and traceable provenance.",
+    "Zeno builds quality-assured data operations for physical AI — managed delivery, inspectable quality and traceable provenance.",
 };
 
 export default function AboutPage() {

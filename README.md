@@ -1,4 +1,4 @@
-# MotivLabs (PhysicalData)
+# Zeno
 
 A two-app monorepo for physical-world (robotics/media) annotation:
 

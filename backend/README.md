@@ -1,4 +1,4 @@
-# PhysicalData Network – Backend
+# Zeno Network – Backend
 
 API-only Next.js 16 App Router project. No UI pages. All routes live under `/api`.
 

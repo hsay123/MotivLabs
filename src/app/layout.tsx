@@ -27,17 +27,17 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://motivelabs.example"),
   title: {
-    default: "Motive Labs — The data infrastructure for intelligent machines",
-    template: "%s · Motive Labs",
+    default: "Zeno — The data infrastructure for intelligent machines",
+    template: "%s · Zeno",
   },
   description:
-    "Motive Labs turns rights-cleared robotics footage into structured, reviewed annotation and training-ready datasets, with versioned records and traceable provenance.",
-  applicationName: "Motive Labs",
+    "Zeno turns rights-cleared robotics footage into structured, reviewed annotation and training-ready datasets, with versioned records and traceable provenance.",
+  applicationName: "Zeno",
   openGraph: {
-    title: "Motive Labs — The data infrastructure for intelligent machines",
+    title: "Zeno — The data infrastructure for intelligent machines",
     description:
       "Turn robotics footage into structured annotations, reviewed datasets, and traceable delivery workflows.",
-    siteName: "Motive Labs",
+    siteName: "Zeno",
     type: "website",
   },
   robots: { index: true, follow: true },

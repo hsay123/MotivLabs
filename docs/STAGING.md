@@ -1,4 +1,4 @@
-# Staging deployment — PhysicalData / MotivLabs
+# Staging deployment — Zeno
 
 Status: **app layer deployed and verified on Vercel; real settlement pending a
 funded Monad-testnet key.** Frontend and backend are independent Vercel

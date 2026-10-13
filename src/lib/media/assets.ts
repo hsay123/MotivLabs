@@ -76,7 +76,7 @@ export const media = {
     "capability-overview.webp",
     16 / 10,
     "Composed still of the annotation workspace with a clip loaded, timeline populated and the label schema visible.",
-    "The Motive Labs annotation workspace with a robotics clip loaded and a populated timeline.",
+    "The Zeno annotation workspace with a robotics clip loaded and a populated timeline.",
   ),
 
   /* ---- Landing: capability sections --------------------------------- */
@@ -103,8 +103,8 @@ export const media = {
   productShowcase: image(
     "product-overview.webp",
     16 / 10,
-    "A real screenshot of the Motive Labs application — the buyer job dashboard.",
-    "The Motive Labs buyer dashboard showing active jobs, task states and quality signals.",
+    "A real screenshot of the Zeno application — the buyer job dashboard.",
+    "The Zeno buyer dashboard showing active jobs, task states and quality signals.",
   ),
 
   /* ---- Landing: use cases ------------------------------------------- */

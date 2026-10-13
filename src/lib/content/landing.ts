@@ -12,7 +12,7 @@ export const hero = {
   eyebrow: "Physical AI data operations",
   headline: "Build better physical AI with data you can trust.",
   support:
-    "Motive Labs turns rights-cleared robotics footage into structured, reviewed annotation and training-ready datasets — with a traceable path from source clip to accepted delivery.",
+    "Zeno turns rights-cleared robotics footage into structured, reviewed annotation and training-ready datasets — with a traceable path from source clip to accepted delivery.",
   primary: { label: "Get started", href: "/signup" },
   secondary: { label: "Explore the platform", href: "/explore" },
 } as const;

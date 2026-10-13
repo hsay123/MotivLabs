@@ -11,7 +11,7 @@ import { media } from "@/lib/media/assets";
 export const platformPage = {
   eyebrow: "The platform",
   title: "One workflow for quality-assured robotics data.",
-  lead: "Motive Labs covers the full path from a rights-cleared source clip to an accepted, exportable annotation record — with the schema, the review decision and the receipt kept alongside it. It is a managed-delivery product, not a bare task marketplace.",
+  lead: "Zeno covers the full path from a rights-cleared source clip to an accepted, exportable annotation record — with the schema, the review decision and the receipt kept alongside it. It is a managed-delivery product, not a bare task marketplace.",
   meta: [
     { label: "First schema", value: "action-segments-v1" },
     { label: "Task unit", value: "Short video segments" },
@@ -291,7 +291,7 @@ export const howItWorksPage = {
 export const aboutPage = {
   eyebrow: "About",
   title: "Quality-assured data operations for physical AI.",
-  lead: "Robotics and embodied-AI teams need structured labels on real-world observations but often lack the capacity to recruit, train, supervise and pay an annotation workforce. Motive Labs exists to run that operation for them, with standards that hold up under inspection.",
+  lead: "Robotics and embodied-AI teams need structured labels on real-world observations but often lack the capacity to recruit, train, supervise and pay an annotation workforce. Zeno exists to run that operation for them, with standards that hold up under inspection.",
   thesis: {
     heading: "What we believe",
     body: "A specialised, quality-controlled workflow for Physical AI can outperform a generic task marketplace by combining clear rubrics, qualified contributors, automated checks, independent review, provenance and dependable dataset delivery. The value is managed delivery — task decomposition, contributor operations, quality assurance, auditability and usable exports — not a token incentive layer.",
@@ -316,7 +316,7 @@ export const aboutPage = {
   ],
   stage: {
     heading: "Where we are",
-    body: "Motive Labs is at the pilot stage. The current release proves one buyer workflow end to end on a single video schema. Nothing on this site describes a customer relationship, certification or payment that has not been verified.",
+    body: "Zeno is at the pilot stage. The current release proves one buyer workflow end to end on a single video schema. Nothing on this site describes a customer relationship, certification or payment that has not been verified.",
   },
   roadmap: [
     { phase: "Now", body: "One video modality, claim queue, annotation UI, validation, review, appeal, versioned export, payout states." },

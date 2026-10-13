@@ -8,7 +8,7 @@ import { AlertTriangle } from "@/components/ui/icons";
 export const metadata: Metadata = {
   title: "Terms",
   description:
-    "The terms that govern use of the Motive Labs platform during its pilot stage.",
+    "The terms that govern use of the Zeno platform during its pilot stage.",
 };
 
 const updated = "12 October 2026";
@@ -19,7 +19,7 @@ export default function TermsPage() {
       <PageIntro
         eyebrow="Legal"
         title="Terms of use"
-        lead="The terms that govern access to the Motive Labs pilot: roles, data-rights declarations, acceptance-linked payment and acceptable use."
+        lead="The terms that govern access to the Zeno pilot: roles, data-rights declarations, acceptance-linked payment and acceptable use."
       />
 
       <Section tone="canvas" spacing="default" contained={false}>
@@ -43,7 +43,7 @@ export default function TermsPage() {
 
             <h2>1. The service</h2>
             <p>
-              Motive Labs provides managed, quality-assured annotation of
+              Zeno provides managed, quality-assured annotation of
               rights-cleared robotics video. Buyers commission and fund work;
               contributors complete scoped tasks; reviewers evaluate submissions
               against an agreed rubric; accepted work is packaged into a

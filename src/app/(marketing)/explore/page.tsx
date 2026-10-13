@@ -12,7 +12,7 @@ import { ArrowRight, Info } from "@/components/ui/icons";
 export const metadata: Metadata = {
   title: "Explore the product",
   description:
-    "Walk through the buyer, contributor and reviewer surfaces of Motive Labs using clearly-labelled sample records.",
+    "Walk through the buyer, contributor and reviewer surfaces of Zeno using clearly-labelled sample records.",
 };
 
 export default function ExplorePage() {

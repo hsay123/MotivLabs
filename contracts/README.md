@@ -1,6 +1,6 @@
 # JobEscrow
 
-Minimal native-MON escrow for PhysicalData/MotivLabs annotation jobs on **Monad
+Minimal native-MON escrow for Zeno annotation jobs on **Monad
 testnet** (chain id `10143`). It holds the money and enforces four rules; the
 platform database remains the source of truth for annotation/task state.
 

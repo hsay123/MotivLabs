@@ -51,7 +51,7 @@ export function Wordmark({
   return (
     <Link
       href={href}
-      aria-label="Motive Labs — home"
+      aria-label="Zeno — home"
       className={cn(
         "group inline-flex items-center gap-2.5 rounded-md focus-visible:outline-none",
         className,
@@ -64,7 +64,7 @@ export function Wordmark({
           tone === "dark" ? "text-white" : "text-ink",
         )}
       >
-        Motive&nbsp;Labs
+        Zeno
       </span>
     </Link>
   );

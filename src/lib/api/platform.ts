@@ -1,5 +1,5 @@
 /**
- * PhysicalData platform client (real backend contract).
+ * Zeno platform client (real backend contract).
  * -------------------------------------------------------------------
  * One typed HTTP client for the Next.js API in `backend/`. Every response is
  * parsed with a zod schema at this boundary, so screens never trust unvalidated

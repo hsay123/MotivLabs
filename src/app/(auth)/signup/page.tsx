@@ -6,7 +6,7 @@ import { Check } from "@/components/ui/icons";
 
 export const metadata: Metadata = {
   title: "Get started",
-  description: "Create a Motive Labs account and pick a role.",
+  description: "Create a Zeno account and pick a role.",
 };
 
 const points = [

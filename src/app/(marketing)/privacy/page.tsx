@@ -8,7 +8,7 @@ import { AlertTriangle } from "@/components/ui/icons";
 export const metadata: Metadata = {
   title: "Privacy",
   description:
-    "How Motive Labs handles source media, annotation records and account data — what stays off-chain and what we do not claim.",
+    "How Zeno handles source media, annotation records and account data — what stays off-chain and what we do not claim.",
 };
 
 const updated = "12 October 2026";
@@ -30,7 +30,7 @@ export default function PrivacyPage() {
               className="mt-0.5 h-4 w-4 shrink-0 text-pending-fg"
             />
             <p className="measure text-body-sm text-pending-fg">
-              Motive Labs is at the pilot stage and this document has not yet
+              Zeno is at the pilot stage and this document has not yet
               been reviewed by counsel. It describes intended handling
               accurately for the current build; it is not legal advice and it
               will change before any commercial launch.
