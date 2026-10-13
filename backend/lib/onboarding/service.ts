@@ -26,6 +26,10 @@ export const onboardingBodySchema = z
   .object({
     account_type: z.enum(ONBOARDING_ACCOUNT_TYPES),
     organization_name: z.string().trim().min(1).max(100).optional(),
+    wallet_address: z.string().trim().optional().refine(
+      (v) => !v || /^0x[0-9a-fA-F]{40}$/.test(v),
+      "wallet_address must be a 0x-prefixed Ethereum address",
+    ),
   })
   .superRefine((value, ctx) => {
     if (value.account_type === "buyer" && !value.organization_name) {
@@ -33,6 +37,14 @@ export const onboardingBodySchema = z
         code: z.ZodIssueCode.custom,
         path: ["organization_name"],
         message: "organization_name is required for a company account",
+      });
+    }
+    // Contributors must provide a verified payout wallet
+    if (value.account_type === "contributor" && !value.wallet_address) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["wallet_address"],
+        message: "wallet_address is required for contributor payouts",
       });
     }
   });
@@ -95,6 +107,7 @@ export async function completeOnboarding(
     p_user_id: userId,
     p_account_type: choice.account_type,
     p_org_name: choice.organization_name ?? null,
+    p_wallet_address: choice.wallet_address ?? null,
   });
 
   if (error) throw mapOnboardingRpcError(error as PostgrestLikeError);

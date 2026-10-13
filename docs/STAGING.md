@@ -18,8 +18,15 @@ written here.
 
 URLs:
 
-- Frontend: **https://zeno-web-app.vercel.app**
+- Frontend (official judge URL): **https://zeno-web-app.vercel.app**
 - Backend / API health: **https://zeno-api.vercel.app/api/health**
+
+> **Official Judge URL — Do Not Change**
+> `https://zeno-web-app.vercel.app` is the canonical public URL for the Zeno hackathon demo.
+> It must remain the URL shared with judges, used in the README and demo documentation,
+> and used as the frontend origin for the hosted Preview application.
+> Never substitute a unique Vercel deployment URL, a different project domain,
+> or a newly generated URL in user-facing materials.
 
 The browser talks only to the frontend origin. `next.config.ts` rewrites
 `/platform/*` to the backend server-side, so there are no cross-origin browser
@@ -91,6 +98,48 @@ Vercel project (never in the repo), so it can drift silently:
 | --- | --- | --- |
 | `zeno-web` | `.` (repo root) | the frontend (`motivelabs@0.1.0`) |
 | `zeno-api` | `backend` | the API (`backend@0.1.0`) |
+
+### 2.4 Official Judge URL — Branch Tracking Configuration
+
+**The official judge URL `https://zeno-web-app.vercel.app` is a Vercel project subdomain.**
+Vercel's native branch-domain assignment only works for **custom domains**, not
+project subdomains (`project.vercel.app`). Therefore, the official URL is kept
+pointing to the latest successful `release/rc-integration` Preview deployment
+via an **automated post-deployment alias update workflow**.
+
+#### Current routing (verified 2026-10-14)
+
+| URL | Target | Tracking |
+| --- | --- | --- |
+| `https://zeno-web-app.vercel.app` | Latest `release/rc-integration` Preview | Automated alias update |
+| `https://zeno-web-git-release-rc-a42c93-yashlandge150-gmailcoms-projects.vercel.app` | Same Preview (branch alias) | Native Vercel branch alias |
+| `https://motivelabs-web.vercel.app` | Production | Native Vercel Production alias |
+
+#### Alias update workflow
+
+Run **after every successful `release/rc-integration` deployment** to re-point
+the official URL to the new Preview deployment:
+
+```bash
+# From repo root
+node scripts/update-zeno-web-app-alias.js
+```
+
+The script (`scripts/update-zeno-web-app-alias.js`):
+1. Queries Vercel for the latest successful `release/rc-integration` Preview
+2. Runs health checks (`/` and `/platform/api/health` → HTTP 200)
+3. Updates the alias `zeno-web-app.vercel.app` → new deployment URL
+4. Verifies the alias resolves and health checks pass
+
+The script **never aliases a failed deployment, wrong branch, or Production**.
+
+#### Vercel project subdomain limitation
+
+`zeno-web-app.vercel.app` is a project subdomain (not a custom domain).
+Vercel's branch-domain assignment only supports custom domains.
+If a custom domain is added later, it should be configured in the Vercel
+dashboard to track the `release/rc-integration` branch Preview, and the
+project subdomain alias workflow can be retired.
 
 Observed failure (main `38a2afc`): `zeno-api` had its Root Directory **empty**,
 so the GitHub build ran the repo-root **frontend** inside the API project. That

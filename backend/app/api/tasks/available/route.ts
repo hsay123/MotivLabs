@@ -3,6 +3,7 @@
  *
  * Side effect: expired leases are released before the listing is produced.
  * `gold_answer` is never selected (see TASK_PUBLIC_COLUMNS).
+ * Only tasks from funded, non-demo jobs are shown.
  */
 
 import type { NextRequest } from "next/server";
@@ -39,8 +40,13 @@ export async function GET(req: NextRequest) {
 
       const supabase = getSupabase();
 
-      // Only tasks whose parent job is published are claimable.
-      let jobQuery = supabase.from("jobs").select("id").eq("status", "published");
+      // Only tasks whose parent job is published AND funded AND not demo are claimable.
+      let jobQuery = supabase
+        .from("jobs")
+        .select("id")
+        .eq("status", "published")
+        .eq("funding_status", "funded")
+        .eq("is_demo", false);
       if (filters.job_id) jobQuery = jobQuery.eq("id", filters.job_id);
       const { data: jobs, error: jobsError } = await jobQuery;
       if (jobsError) {
@@ -56,6 +62,7 @@ export async function GET(req: NextRequest) {
         .from("tasks")
         .select(TASK_PUBLIC_COLUMNS, { count: "exact" })
         .eq("status", "available")
+        .eq("is_demo", false)
         .in("job_id", jobIds)
         .order("created_at", { ascending: true })
         .range(page.from, page.to);

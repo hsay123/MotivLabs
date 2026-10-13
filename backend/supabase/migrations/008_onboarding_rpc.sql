@@ -12,7 +12,8 @@
 CREATE OR REPLACE FUNCTION complete_onboarding(
   p_user_id      uuid,
   p_account_type text,
-  p_org_name     text DEFAULT NULL
+  p_org_name     text DEFAULT NULL,
+  p_wallet_address text DEFAULT NULL
 ) RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -29,6 +30,18 @@ BEGIN
   -- admin-controlled and can never be set through onboarding.
   IF p_account_type IS NULL OR p_account_type NOT IN ('buyer', 'contributor') THEN
     RAISE EXCEPTION 'invalid account type %', p_account_type
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- Validate wallet address format if provided
+  IF p_wallet_address IS NOT NULL AND p_wallet_address !~ '^0x[a-fA-F0-9]{40}$' THEN
+    RAISE EXCEPTION 'wallet_address must be a 0x-prefixed Ethereum address'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- Contributors must provide a wallet address for payouts
+  IF p_account_type = 'contributor' AND (p_wallet_address IS NULL OR length(btrim(p_wallet_address)) = 0) THEN
+    RAISE EXCEPTION 'wallet_address is required for contributor payouts'
       USING ERRCODE = '22023';
   END IF;
 
@@ -55,7 +68,8 @@ BEGIN
     UPDATE users
       SET onboarding_completed = true,
           onboarding_account_type = 'contributor',
-          role = 'contributor'
+          role = 'contributor',
+          wallet_address = p_wallet_address
       WHERE id = p_user_id;
 
     RETURN jsonb_build_object(
@@ -110,7 +124,8 @@ BEGIN
     SET onboarding_completed = true,
         onboarding_account_type = 'buyer',
         role = 'buyer',
-        organization_id = v_org_id
+        organization_id = v_org_id,
+        wallet_address = p_wallet_address
     WHERE id = p_user_id;
 
   RETURN jsonb_build_object(

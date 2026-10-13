@@ -162,6 +162,14 @@ export interface Job {
   label_list: string[];
   created_at: string;
   updated_at: string;
+  // Funding fields
+  funding_status: "unfunded" | "pending" | "funded" | "failed";
+  funded_amount: string | null;
+  funding_tx_hash: string | null;
+  funding_wallet_address: string | null;
+  funded_at: string | null;
+  funding_wallet_address?: string | null;
+  is_demo: boolean;
 }
 
 export interface Task {

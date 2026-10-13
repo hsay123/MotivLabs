@@ -37,6 +37,7 @@ describe("onboardingGateDecision", () => {
       "/workspace/buyer",
       "/workspace/buyer/new",
       "/workspace/buyer/jobs/abc/export",
+      "/workspace/buyer/jobs/1/export",
       "/workspace/reviewer/review/1",
       "/workspace/admin",
     ]) {
@@ -150,14 +151,17 @@ describe("submitOnboarding", () => {
       onboarding_completed: true,
       redirect: "/workspace/contributor",
     });
-    const result = await submitOnboarding(client, { account_type: "contributor" });
+    const result = await submitOnboarding(client, { 
+      account_type: "contributor",
+      wallet_address: "0x1234567890123456789012345678901234567890",
+    });
     expect(result).toEqual({ status: "success", redirect: "/workspace/contributor" });
     expect(calls).toEqual([
-      { path: "/api/onboarding/complete", body: { account_type: "contributor" } },
+      { path: "/api/onboarding/complete", body: { account_type: "contributor", wallet_address: "0x1234567890123456789012345678901234567890" } },
     ]);
   });
 
-  it("sends the trimmed organization name for a buyer", async () => {
+  it("sends the trimmed organization name and wallet address for a buyer", async () => {
     const { client, calls } = fakeClient({
       onboarding_completed: true,
       redirect: "/workspace/buyer",
@@ -165,11 +169,13 @@ describe("submitOnboarding", () => {
     const result = await submitOnboarding(client, {
       account_type: "buyer",
       organization_name: "  Acme AI  ",
+      wallet_address: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
     });
     expect(result).toEqual({ status: "success", redirect: "/workspace/buyer" });
     expect(calls[0].body).toEqual({
       account_type: "buyer",
       organization_name: "Acme AI",
+      wallet_address: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
     });
   });
 
@@ -181,23 +187,54 @@ describe("submitOnboarding", () => {
     const result = await submitOnboarding(client, {
       account_type: "buyer",
       organization_name: "   ",
+      wallet_address: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
     });
     expect(result).toEqual({ status: "error", message: "Organization name is required" });
     expect(calls).toHaveLength(0);
   });
 
-  it("refuses a too-short organization name without sending a request", async () => {
+  it("refuses a buyer with no wallet address without sending a request", async () => {
     const { client, calls } = fakeClient({
       onboarding_completed: true,
       redirect: "/workspace/buyer",
     });
     const result = await submitOnboarding(client, {
       account_type: "buyer",
-      organization_name: "A",
+      organization_name: "Acme AI",
+      wallet_address: "",
+    });
+    expect(result).toEqual({ status: "error", message: "wallet_address is required for funding" });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("refuses a contributor with no wallet address without sending a request", async () => {
+    const { client, calls } = fakeClient({
+      onboarding_completed: true,
+      redirect: "/workspace/contributor",
+    });
+    const result = await submitOnboarding(client, {
+      account_type: "contributor",
+      wallet_address: "",
     });
     expect(result).toEqual({
       status: "error",
-      message: "Organization name must be at least 2 characters",
+      message: "wallet_address is required for payouts",
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("refuses a contributor with invalid wallet address without sending a request", async () => {
+    const { client, calls } = fakeClient({
+      onboarding_completed: true,
+      redirect: "/workspace/contributor",
+    });
+    const result = await submitOnboarding(client, {
+      account_type: "contributor",
+      wallet_address: "invalid",
+    });
+    expect(result).toEqual({
+      status: "error",
+      message: "wallet_address must be a valid Ethereum address (0x...)",
     });
     expect(calls).toHaveLength(0);
   });
@@ -207,7 +244,10 @@ describe("submitOnboarding", () => {
       onboarding_completed: false,
       redirect: "/workspace/contributor",
     });
-    const result = await submitOnboarding(client, { account_type: "contributor" });
+    const result = await submitOnboarding(client, { 
+      account_type: "contributor",
+      wallet_address: "0x1234567890123456789012345678901234567890",
+    });
     expect(result.status).toBe("error");
   });
 
@@ -220,6 +260,7 @@ describe("submitOnboarding", () => {
     const result = await submitOnboarding(client, {
       account_type: "buyer",
       organization_name: "Acme AI",
+      wallet_address: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
     });
     expect(result).toEqual({
       status: "error",
@@ -263,5 +304,6 @@ describe("createSubmitGuard", () => {
     await expect(guard.run(action)).resolves.toBe(1);
     await expect(guard.run(action)).resolves.toBe(2);
     expect(calls).toBe(2);
+    expect(guard.busy).toBe(false);
   });
 });

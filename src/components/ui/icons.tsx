@@ -130,7 +130,6 @@ export const FileText = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M6 3.5h7.5L18.5 8v12.5h-12.5v-17Z" />
     <path d="M13 3.5V8h5" />
-    <path d="M9 13h6M9 16.5h4" />
   </svg>
 );
 
@@ -214,6 +213,14 @@ export const Receipt = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M6 3.5h12v17l-3-1.8-3 1.8-3-1.8-3 1.8v-17Z" />
     <path d="M9.5 8.5h5M9.5 12.5h5" />
+  </svg>
+);
+
+export const Wallet = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="6" width="18" height="12" rx="2" />
+    <path d="M9 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <path d="M9 18v-2a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
 

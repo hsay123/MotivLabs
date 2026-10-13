@@ -145,6 +145,13 @@ export const jobSchema = z.object({
   label_list: z.array(z.string()),
   created_at: z.string(),
   updated_at: z.string(),
+  // Funding fields
+  funding_status: z.enum(["unfunded", "pending", "funded", "failed"]),
+  funded_amount: z.string().nullable(),
+  funding_tx_hash: z.string().nullable(),
+  funding_wallet_address: z.string().nullable(),
+  funded_at: z.string().nullable(),
+  is_demo: z.boolean(),
 });
 
 export const taskSchema = z.object({
@@ -161,6 +168,7 @@ export const taskSchema = z.object({
   signed_media_url: z.string().optional(),
   created_at: z.string(),
   updated_at: z.string(),
+  is_demo: z.boolean(),
 });
 
 export const claimResultSchema = z.object({

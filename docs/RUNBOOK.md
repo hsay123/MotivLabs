@@ -67,6 +67,9 @@ curl -s http://localhost:3010/api/health
 cd .. && npm run dev                        # https://localhost:3000 (generates a local cert on first run)
 ```
 
+**Official Judge URL (hosted demo):** `https://zeno-web-app.vercel.app`
+This is the canonical public URL for the Zeno hackathon demo. Do not change it.
+
 ## 4. Roles
 - First Privy login creates a **contributor**.
 - Promote each real account after its first login:
@@ -104,6 +107,28 @@ E2E (Playwright, real stack, `DEV_AUTH_BYPASS=false`):
 ```bash
 node scripts/capture-sessions.mjs <role>      # headed; saves playwright/.auth/<role>.json (gitignored)
 npx playwright test e2e/s1-auth-roles.spec.ts # S1 — needs a captured contributor session
+```
+
+### Hosted Demo — Official Judge URL & Alias Update
+
+**Official Judge URL:** `https://zeno-web-app.vercel.app` — **Do not change.**
+
+This URL is kept pointing to the latest successful `release/rc-integration` Preview
+deployment via the alias update script:
+
+```bash
+# Run after every successful release/rc-integration deployment
+node scripts/update-zeno-web-app-alias.js
+```
+
+The script verifies health (`/` and `/platform/api/health` → HTTP 200), updates the
+alias, and confirms the rewrite and Privy login work.
+
+Verification after alias update:
+```bash
+curl -sS -w "http=%{http_code}" https://zeno-web-app.vercel.app/
+curl -sS -w "http=%{http_code}" https://zeno-web-app.vercel.app/platform/api/health
+# Both must return HTTP 200
 ```
 
 ## 7. What is mock vs real
