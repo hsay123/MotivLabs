@@ -47,7 +47,7 @@ export function HeroMediaPlaceholder({
             <TechnicalBackdrop tone="dark" />
           </div>
 
-          {/* Media-slot affordance: states this is a reserved slot for footage. */}
+          {/* Media-slot affordance: states this is a reserved slot for media. */}
           <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-line-inverse bg-night/70 px-3 py-1.5 backdrop-blur-sm sm:left-6 sm:top-6">
             <span aria-hidden className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-400 opacity-60" />

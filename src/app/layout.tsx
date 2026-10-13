@@ -31,12 +31,12 @@ export const metadata: Metadata = {
     template: "%s · Zeno",
   },
   description:
-    "Zeno turns rights-cleared robotics footage into structured, reviewed annotation and training-ready datasets, with versioned records and traceable provenance.",
+    "Zeno turns rights-cleared image and video data into structured, reviewed annotation and training-ready datasets, with versioned records and traceable provenance.",
   applicationName: "Zeno",
   openGraph: {
     title: "Zeno — The data infrastructure for intelligent machines",
     description:
-      "Turn robotics footage into structured annotations, reviewed datasets, and traceable delivery workflows.",
+      "Turn image and video data into structured annotations, reviewed datasets, and traceable delivery workflows.",
     siteName: "Zeno",
     type: "website",
   },

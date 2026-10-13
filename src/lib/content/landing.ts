@@ -9,10 +9,10 @@
 import { media } from "@/lib/media/assets";
 
 export const hero = {
-  eyebrow: "Physical AI data operations",
-  headline: "Build better physical AI with data you can trust.",
+  eyebrow: "Data operations for machine learning",
+  headline: "Build better models with data you can trust.",
   support:
-    "Zeno turns rights-cleared robotics footage into structured, reviewed annotation and training-ready datasets — with a traceable path from source clip to accepted delivery.",
+    "Zeno turns rights-cleared images and video into structured, reviewed annotation and training-ready datasets — with a traceable path from source media to accepted delivery.",
   primary: { label: "Get started", href: "/signup" },
   secondary: { label: "Explore the platform", href: "/explore" },
 } as const;
@@ -25,17 +25,17 @@ export const hero = {
  * implied. Swap in approved logos when they exist.
  */
 export const credibilityCategories = [
-  { label: "Robotics", detail: "First-person and workcell footage" },
+  { label: "Image annotation", detail: "Regions and objects on still images" },
+  { label: "Video annotation", detail: "Timestamped action segments" },
   { label: "Data quality", detail: "Schema checks and gold tasks" },
-  { label: "Annotation", detail: "Timestamped action segments" },
   { label: "Provenance", detail: "Versioned records and manifests" },
 ] as const;
 
 export const capabilityIntro = {
   eyebrow: "The workflow",
-  heading: "From raw robot data to training-ready datasets.",
+  heading: "From raw images and video to training-ready datasets.",
   support:
-    "One connected workflow for collecting, labelling, reviewing and delivering high-quality robotics data. Every accepted label keeps the schema version, review decision and receipt behind it.",
+    "One connected workflow for collecting, labelling, reviewing and delivering high-quality data. Every accepted label keeps the schema version, review decision and receipt behind it.",
 } as const;
 
 export type Capability = {
@@ -56,17 +56,17 @@ export const capabilities: Capability[] = [
     id: "annotate",
     index: "01",
     eyebrow: "Annotate and structure",
-    heading: "Turn footage into structured, timestamped labels.",
-    body: "Contributors work inside a focused browser workspace. They scrub the assigned segment, place action boundaries against a timecode, and fill in the fields your schema defines — with the instructions and worked examples beside them the whole time.",
+    heading: "Turn images and video into structured labels.",
+    body: "Contributors work inside a focused browser workspace. They draw regions on a still image, or scrub the assigned video segment and place action boundaries against a timecode, then fill in the fields your schema defines — with the instructions and worked examples beside them the whole time.",
     bullets: [
-      "Video and frame-based annotation",
-      "Action labels with explicit start and end timestamps",
+      "Image region and video action annotation",
+      "Object boxes, or action labels with explicit start and end timestamps",
       "A task-specific schema you define per project",
       "Contributor instructions and worked examples in context",
       "Versioned submissions — corrections never overwrite history",
     ],
     asset: media.annotationWorkspace,
-    placeholderLabel: "[Replace with robotics annotation interface screenshot]",
+    placeholderLabel: "[Replace with annotation interface screenshot]",
     layout: "media-right",
   },
   {
@@ -74,7 +74,7 @@ export const capabilities: Capability[] = [
     index: "02",
     eyebrow: "Review and validate",
     heading: "Independent review against a rubric you define.",
-    body: "Nothing is accepted on trust. A server-side validator checks schema, timestamp bounds and segment ordering first. Then a reviewer — who cannot review their own work — compares the submission against the source clip and the rubric, and records a reason-coded decision.",
+    body: "Nothing is accepted on trust. A server-side validator checks schema, timestamp bounds and segment ordering first. Then a reviewer — who cannot review their own work — compares the submission against the source media and the rubric, and records a reason-coded decision.",
     bullets: [
       "Rubric-based evaluation with published reason codes",
       "Accept, request correction, or reject with a stated reason",
@@ -107,14 +107,14 @@ export const capabilities: Capability[] = [
 
 export const workflow = {
   eyebrow: "One workflow",
-  heading: "One workflow. From footage to usable data.",
+  heading: "One workflow. From raw media to usable data.",
   support:
     "Each stage hands off a specific, inspectable artifact. Nothing moves forward on assumption — and nothing is paid for until it has been accepted.",
   steps: [
     {
       id: "source",
-      label: "Source footage",
-      detail: "Rights-cleared robotics video, uploaded privately and split into scoped segments.",
+      label: "Source media",
+      detail: "Rights-cleared images or video, uploaded privately and split into scoped units.",
       state: "Private object storage",
     },
     {
@@ -146,37 +146,37 @@ export const workflow = {
 
 export const useCases = {
   eyebrow: "Where it fits",
-  heading: "Built for the physical AI you are actually training.",
+  heading: "Built for teams that train on real-world data.",
   support:
-    "The first schema targets timestamped action and failure events in robotics video — the narrow slice where structured labels most reliably change a training outcome.",
+    "The current release supports image and video annotation. Start with the modality that fits your data — audio, text and 3D are not supported yet.",
   items: [
     {
       id: "manipulation",
-      title: "Robotics manipulation",
+      title: "Robotics and embodied AI",
       body: "Reach, grasp, lift, place and recover. Capture the failure events that decide whether a policy generalises.",
       asset: media.useCaseManipulation,
       tags: ["Action segments", "Failure events"],
     },
     {
       id: "humanoid",
-      title: "Humanoid and embodied AI",
-      body: "Task phases from egocentric and third-person capture, labelled consistently across contributors.",
+      title: "Medical and life sciences",
+      body: "Regions of interest on scans, slides and imagery, labelled consistently across contributors and reviewers.",
       asset: media.useCaseHumanoid,
-      tags: ["Task phases", "Egocentric"],
+      tags: ["Image regions", "Objects"],
     },
     {
       id: "industrial",
-      title: "Industrial automation",
-      body: "Workcell actions, handoffs and defect events recorded against a stable schema over time.",
+      title: "Industrial inspection",
+      body: "Defects, workcell actions and handoffs recorded against a stable schema, so quality can be tracked over time.",
       asset: media.useCaseIndustrial,
-      tags: ["Workcell", "Defects"],
+      tags: ["Defects", "Regions"],
     },
     {
       id: "autonomous",
-      title: "Autonomous systems",
-      body: "Navigation and interaction events labelled with timestamps, so downstream evaluation can be sliced by scenario.",
+      title: "Retail, logistics and agriculture",
+      body: "Shelves, packages and field imagery labelled with the schema your pipeline consumes, sliceable by scenario.",
       asset: media.useCaseAutonomous,
-      tags: ["Navigation", "Interaction"],
+      tags: ["Detection", "Classification"],
     },
   ],
 } as const;
@@ -194,7 +194,7 @@ export const productShowcase = {
     },
     {
       title: "Annotation workspace",
-      body: "Footage canvas, timeline, schema-driven fields and honest submission state.",
+      body: "Image or video canvas, timeline, schema-driven fields and honest submission state.",
     },
     {
       title: "Review console",
@@ -230,7 +230,7 @@ export const trust = {
     {
       id: "private",
       title: "Private source media",
-      body: "Source footage stays in private storage behind short-lived, task-scoped access. It is never exposed publicly.",
+      body: "Source media stays in private storage behind short-lived, task-scoped access. It is never exposed publicly.",
       icon: "lock",
     },
     {
@@ -248,7 +248,7 @@ export const faqs = {
   items: [
     {
       q: "What data do you accept today?",
-      a: "The first released schema covers rights-cleared robotics video with timestamped action segments and failure events. Other modalities — depth, LiDAR, point clouds, sensor fusion — are on the roadmap and are not available yet. We would rather ship one schema that holds up than imply breadth we do not have.",
+      a: "Right now: images and video. Images are annotated with object regions, and video with timestamped action segments and failure events. Other modalities — audio, text, 3D, depth, LiDAR and synchronised multi-sensor capture — are not supported yet and are not sold as if they were.",
     },
     {
       q: "How is annotation quality controlled?",
@@ -274,9 +274,9 @@ export const faqs = {
 } as const;
 
 export const finalCta = {
-  heading: "Build your next generation of physical AI on better data.",
+  heading: "Build your next model on better data.",
   support:
-    "Start with your robotics data workflow and turn reviewed work into datasets your team can use.",
+    "Start with your image or video workflow and turn reviewed work into datasets your team can use.",
   primary: { label: "Get started", href: "/signup" },
   secondary: { label: "Explore the platform", href: "/explore" },
 } as const;

@@ -6,7 +6,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { cn } from "@/lib/utils/cn";
 
 /**
- * Physical AI use cases.
+ * Machine-learning use cases.
  *
  * Four items on an asymmetric grid — 7/5 then 5/7 — so each reads as a
  * distinct case rather than a uniform tile. Copy stays inside what the

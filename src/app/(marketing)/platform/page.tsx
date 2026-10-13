@@ -26,7 +26,7 @@ import {
 export const metadata: Metadata = {
   title: "Platform",
   description:
-    "One workflow for quality-assured robotics data: schema validation, independent review, provenance and deterministic exports.",
+    "One workflow for quality-assured image and video data: schema validation, independent review, provenance and deterministic exports.",
 };
 
 const qualityIcons = [ShieldCheck, Sparkle, Scale, Layers, AlertTriangle, FileText];

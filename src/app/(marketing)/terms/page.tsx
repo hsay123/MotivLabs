@@ -44,7 +44,7 @@ export default function TermsPage() {
             <h2>1. The service</h2>
             <p>
               Zeno provides managed, quality-assured annotation of
-              rights-cleared robotics video. Buyers commission and fund work;
+              rights-cleared images or video. Buyers commission and fund work;
               contributors complete scoped tasks; reviewers evaluate submissions
               against an agreed rubric; accepted work is packaged into a
               versioned dataset.

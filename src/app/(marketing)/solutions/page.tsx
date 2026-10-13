@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils/cn";
 export const metadata: Metadata = {
   title: "Solutions",
   description:
-    "Timestamped action and failure annotation for robotics manipulation, humanoid, industrial and autonomous systems — for buyers, contributors and reviewers.",
+    "Timestamped action and failure annotation for robotics, medical, industrial and retail data — for buyers, contributors and reviewers.",
 };
 
 export default function SolutionsPage() {
@@ -146,7 +146,7 @@ export default function SolutionsPage() {
                 Not sure which schema fits?
               </h2>
               <p className="mt-2 measure text-body-sm text-ink-3">
-                Bring the clip and the label you need. We will tell you honestly
+                Bring the media and the label you need. We will tell you honestly
                 whether the current schema covers it.
               </p>
             </div>

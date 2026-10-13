@@ -49,7 +49,7 @@ export default function PrivacyPage() {
             </p>
             <ul>
               <li>
-                <strong>Source media</strong> — rights-cleared robotics video
+                <strong>Source media</strong> — rights-cleared images or video
                 supplied by a buyer, stored in private object storage and
                 streamed only for the assigned segment.
               </li>

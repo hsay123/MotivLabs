@@ -14,7 +14,7 @@ import { WorkflowSequence } from "@/components/marketing/WorkflowSequence";
 export const metadata: Metadata = {
   title: "The data infrastructure for intelligent machines",
   description:
-    "Zeno turns rights-cleared robotics footage into structured, reviewed annotation and training-ready datasets — with versioned records and a traceable path from source clip to accepted delivery.",
+    "Zeno turns rights-cleared image and video data into structured, reviewed annotation and training-ready datasets — with versioned records and a traceable path from source media to accepted delivery.",
 };
 
 /**
