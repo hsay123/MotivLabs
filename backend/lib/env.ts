@@ -68,6 +68,10 @@ const envSchema = z.object({
       (v) => !v || /^0x[0-9a-fA-F]{64}$/.test(v),
       "SETTLEMENT_PRIVATE_KEY must be a 32-byte 0x-prefixed private key",
     ),
+  // Optional comma-separated deny-list of addresses that must never act as the
+  // settlement signer or escrow owner (e.g. a key known to have been exposed).
+  // The settlement preflight fails closed when either role matches one.
+  SETTLEMENT_FORBIDDEN_ADDRESS: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

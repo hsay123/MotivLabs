@@ -10,7 +10,8 @@
     "lint": "eslint app lib scripts src --ext .ts,.tsx",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "settlement:preflight": "tsx scripts/settlement-preflight.ts"
   },
   "dependencies": {
     "@privy-io/server-auth": "^1.32.5",
