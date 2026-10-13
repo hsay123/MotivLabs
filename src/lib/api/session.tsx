@@ -59,7 +59,8 @@ export function useSession(): Session {
   return context;
 }
 
-function Frame({ children }: { children: ReactNode }) {
+/** Full-height placeholder used while a session or a redirect resolves. */
+export function SessionFrame({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <header>
@@ -122,27 +123,27 @@ export function SessionGate({ children }: { children: ReactNode }) {
 
   if (!isPlatformConfigured() || (ready && !authenticated)) {
     return (
-      <Frame>
+      <SessionFrame>
         <p className="text-body text-ink-2">
           {!isPlatformConfigured()
             ? "NEXT_PUBLIC_API_BASE_URL is not set — the platform API is not configured."
             : "Redirecting to sign in…"}
         </p>
-      </Frame>
+      </SessionFrame>
     );
   }
 
   if (!ready || (authenticated && !user && !error)) {
     return (
-      <Frame>
+      <SessionFrame>
         <p className="text-body text-ink-2">Verifying your session…</p>
-      </Frame>
+      </SessionFrame>
     );
   }
 
   if (error) {
     return (
-      <Frame>
+      <SessionFrame>
         <h1 className="font-display text-display-sm text-ink">
           We couldn&apos;t load your session
         </h1>
@@ -158,7 +159,7 @@ export function SessionGate({ children }: { children: ReactNode }) {
             Sign out
           </Button>
         </div>
-      </Frame>
+      </SessionFrame>
     );
   }
 

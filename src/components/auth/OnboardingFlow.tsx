@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useCallback, useEffect, Fragment } from "react";
+import { useState, useCallback, useEffect, Fragment, useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Check, Info, AlertTriangle, Clock, ChevronDown, Users } from "@/components/ui/icons";
 import { cn } from "@/lib/utils/cn";
 import { useSession } from "@/lib/api/session";
-import { platformPaths, onboardingCompleteResponseSchema } from "@/lib/api/platform";
+import {
+  createSubmitGuard,
+  describeSelection,
+  orgNameIssue,
+  submitOnboarding,
+} from "@/lib/api/onboarding";
 
 type AccountType = "buyer" | "contributor";
 
@@ -67,59 +72,57 @@ export function OnboardingFlow() {
   }, [orgNameError]);
 
   const validateOrgName = useCallback((name: string): boolean => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setOrgNameError("Organization name is required");
-      return false;
-    }
-    if (trimmed.length < 2) {
-      setOrgNameError("Organization name must be at least 2 characters");
-      return false;
-    }
-    if (trimmed.length > 100) {
-      setOrgNameError("Organization name must be 100 characters or less");
-      return false;
-    }
-    setOrgNameError(null);
-    return true;
+    const issue = orgNameIssue(name);
+    setOrgNameError(issue);
+    return issue === null;
   }, []);
 
-  const handleSubmit = async () => {
-    if (!selected || (selected === "buyer" && !validateOrgName(orgName))) return;
-    if (!client) {
-      setError("Platform client not available. Please refresh the page.");
-      return;
-    }
+  // Serialises submissions: a second click while a request is in flight is a
+  // no-op, so a contributor selection can never be POSTed twice.
+  const submitGuard = useRef<ReturnType<typeof createSubmitGuard> | null>(null);
+  if (submitGuard.current === null) submitGuard.current = createSubmitGuard();
 
-    setStep("submitting");
-    setError(null);
+  /**
+   * Send the choice to the backend and only advance to success once the API
+   * confirms it persisted. Contributor has no extra form, so it is submitted
+   * the moment it is selected; buyer is submitted from the organization step.
+   */
+  const startSubmit = useCallback(
+    (accountType: "buyer" | "contributor") => {
+      const guard = submitGuard.current!;
+      if (guard.busy) return;
 
-    try {
-      const data = await client.post(
-        onboardingCompleteResponseSchema,
-        platformPaths.onboardingComplete(),
-        {
-          body: {
-            account_type: selected,
-            organization_name: selected === "buyer" ? orgName.trim() : undefined,
-          },
-        }
-      );
+      setSelected(accountType);
+      setError(null);
+      setStep("submitting");
 
-      if (data.onboarding_completed && data.redirect) {
-        setStep("success");
-        setTimeout(() => {
-          window.location.href = data.redirect;
-        }, 800);
-      } else {
-        setError("Onboarding did not complete successfully");
-        setStep("error");
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Something went wrong";
-      setError(message);
-      setStep("error");
-    }
+      void guard
+        .run(() =>
+          submitOnboarding(client, {
+            account_type: accountType,
+            organization_name: accountType === "buyer" ? orgName.trim() : undefined,
+          }),
+        )
+        .then((result) => {
+          if (!result) return; // a request was already in flight
+          if (result.status === "success") {
+            setStep("success");
+            window.setTimeout(() => {
+              window.location.href = result.redirect;
+            }, 800);
+          } else {
+            setError(result.message);
+            setStep("error");
+          }
+        });
+    },
+    [client, orgName],
+  );
+
+  const handleSubmit = () => {
+    if (!selected) return;
+    if (selected === "buyer" && !validateOrgName(orgName)) return;
+    startSubmit(selected);
   };
 
   const handleRetry = () => {
@@ -145,6 +148,10 @@ export function OnboardingFlow() {
   }, [step, handleBack]);
 
   const activeAccount = accounts.find((a) => a.key === selected) ?? null;
+
+  // Pure check, safe to evaluate during render (scheduling state here caused an
+  // infinite re-render loop in the buyer organization step).
+  const orgNameProblem = orgNameIssue(orgName);
 
   const progressSteps = [
     { id: "choose", label: "Choose", icon: <svg className="h-5 w-5 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M21 13.5V21a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8.5"/><path d="M21 10.5V7.5a2.5 2.5 0 0 0-5 0"/><path d="M21 21a2 2 0 0 0 2-2V9"/><path d="M3 21h18"/></svg> },
@@ -211,10 +218,16 @@ export function OnboardingFlow() {
                       type="button"
                       aria-pressed={isActive}
                       onClick={() => {
+                        if (step !== "choose") return;
                         setSelected(account.key);
                         setError(null);
-                        if (step === "choose") {
-                          setStep(account.key === "buyer" ? "org-name" : "submitting");
+                        // Contributor has no further input: submit for real now
+                        // instead of only moving to the "submitting" screen.
+                        const next = describeSelection(account.key);
+                        if (next.kind === "advance-to-org-name") {
+                          setStep("org-name");
+                        } else {
+                          startSubmit(next.accountType);
                         }
                       }}
                       className={cn(
@@ -359,7 +372,7 @@ export function OnboardingFlow() {
                   <Button
                     size="lg"
                     onClick={handleSubmit}
-                    disabled={!validateOrgName(orgName)}
+                    disabled={orgNameProblem !== null}
                     className="flex-1"
                   >
                     Continue to buyer workspace
