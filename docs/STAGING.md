@@ -218,6 +218,11 @@ npx tsx scripts/set-role.ts you+admin@example.com admin
   `backend/lib/settlement/service.ts`.
 - Real settlement is still off: the corrected `JobEscrow` is not deployed and no
   fresh owner/relayer keys are funded yet (§4.2). Receipts stay `is_mock = true`.
+- CVAT is **not integrated**. The supported editor is the built-in workspace
+  (image boxes; video timeline with seek, Set start/Set end and debounced
+  autosave). The adapter design, mapping and the host/credentials a human must
+  provide are in [`docs/CVAT-INTEGRATION.md`](CVAT-INTEGRATION.md). No surface
+  claims CVAT support.
 
 ## 8. Commit history
 
