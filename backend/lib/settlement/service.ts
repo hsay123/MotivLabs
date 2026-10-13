@@ -25,12 +25,20 @@ import { assertLegalTransition } from "@/lib/tasks/stateMachine";
 import { loadSubmission } from "@/lib/review/repository";
 import { toJob, type JobRow } from "@/lib/jobs/repository";
 import {
+  beginSettlement,
   countPaidTasksInJob,
   incrementTasksCompleted,
   insertReceipt,
+  listIncompleteSettlements,
   loadAcceptingReview,
+  loadReceiptBySubmission,
   loadReceiptRow,
+  loadSettlementByTask,
   loadUserWalletAddress,
+  markSettlementConfirmed,
+  markSettlementFailed,
+  markSettlementSubmitted,
+  type SettlementRow,
 } from "@/lib/settlement/repository";
 import { createChainSettlementService } from "@/lib/settlement/chain";
 import { sumDecimalStrings, withinBudget } from "@/lib/settlement/money";
@@ -61,23 +69,42 @@ export interface SettlementRequest {
   amount: string;
   /** Contributor payout address; null blocks on-chain settlement. */
   payeeAddress: string | null;
+  /**
+   * Called as soon as the transaction is broadcast (before confirmation), so
+   * the caller can persist the hash and recover if the response is lost.
+   */
+  onSubmitted?: (txHash: string, isMock: boolean) => void | Promise<void>;
 }
 
 export interface SettlementService {
   settle(req: SettlementRequest): Promise<SettlementResult>;
+  /**
+   * Re-verify a previously broadcast settlement. Returns the result when the
+   * transaction is confirmed and matches, otherwise `null`. Used by the
+   * crash-recovery path so a payout is never finalised unverified.
+   */
+  verify?(req: SettlementRequest, txHash: string): Promise<SettlementResult | null>;
 }
 
 export class MockSettlementService implements SettlementService {
+  private mockHash(req: SettlementRequest): string {
+    return hashCanonicalJson({
+      task_id: req.taskId,
+      submission_id: req.submissionId,
+      amount: req.amount,
+      mock: true,
+    });
+  }
+
   async settle(req: SettlementRequest): Promise<SettlementResult> {
-    return {
-      tx_hash: hashCanonicalJson({
-        task_id: req.taskId,
-        submission_id: req.submissionId,
-        amount: req.amount,
-        mock: true,
-      }),
-      is_mock: true,
-    };
+    const tx_hash = this.mockHash(req);
+    await req.onSubmitted?.(tx_hash, true);
+    return { tx_hash, is_mock: true };
+  }
+
+  async verify(req: SettlementRequest, txHash: string): Promise<SettlementResult | null> {
+    const expected = this.mockHash(req);
+    return txHash === expected ? { tx_hash: expected, is_mock: true } : null;
   }
 }
 
@@ -119,6 +146,15 @@ export interface SettleAcceptedTaskInput {
   settlementService?: SettlementService;
 }
 
+/**
+ * Settle an accepted task.
+ *
+ * Crash-safe and idempotent:
+ *   1. a `settlements` row (unique per task) is written BEFORE the chain call;
+ *   2. the broadcast hash is persisted as soon as it is known;
+ *   3. the receipt + task transition happen only after the payout is verified;
+ *   4. a retry reuses the existing row and never broadcasts a second payout.
+ */
 export async function settleAcceptedTask(
   input: SettleAcceptedTaskInput,
 ): Promise<Receipt> {
@@ -130,48 +166,147 @@ export async function settleAcceptedTask(
   }
 
   const task = toTask(await loadTask(input.taskId));
-  if (task.status === "paid") {
-    throw HttpError.conflict("Task has already been paid");
+
+  // A confirmed settlement is final, even if the task row lags behind.
+  const recorded = await loadSettlementByTask(input.taskId);
+  if (recorded?.status === "confirmed") {
+    const existingReceipt = await loadReceiptBySubmission(input.submissionId);
+    if (existingReceipt) return existingReceipt;
+    throw HttpError.internal("Settlement is confirmed but its receipt is missing");
   }
-  if (task.status !== "accepted") {
+
+  if (task.status !== "accepted" && task.status !== "paid") {
     throw HttpError.conflict("Task is not in an accepted state");
+  }
+  if (task.status === "paid" && !recorded) {
+    throw HttpError.conflict("Task has already been paid");
   }
 
   const job = await loadJobForSettlement(task.job_id);
-  const paidCount = await countPaidTasksInJob(task.job_id);
-  if (!withinBudget(job.reward_per_task, paidCount + 1, job.budget)) {
-    throw HttpError.conflict("Job budget exhausted");
-  }
-
   const acceptingReview = await loadAcceptingReview(input.submissionId);
   const annotationHash = submission.payload_hash;
   const policyHash = job.policy_hash ?? hashCanonicalJson(job.rubric ?? {});
+  const payeeAddress = await loadUserWalletAddress(submission.contributor_id);
 
-  const settlement = await service.settle({
+  const baseRequest: SettlementRequest = {
     jobId: task.job_id,
     taskId: input.taskId,
     submissionId: input.submissionId,
     annotationHash,
     policyHash,
     amount: job.reward_per_task,
-    payeeAddress: await loadUserWalletAddress(submission.contributor_id),
-  });
+    payeeAddress,
+  };
 
-  assertLegalTransition("accepted", "paid");
-
-  const receipt = await insertReceipt({
+  // Open (or fetch) the single settlement row before touching the chain.
+  const row = await beginSettlement({
+    taskId: task.id,
     submissionId: input.submissionId,
+    jobId: task.job_id,
+    contributorId: submission.contributor_id,
+    amount: job.reward_per_task,
     annotationHash,
     policyHash,
     reviewRef: acceptingReview?.id ?? null,
-    txHash: settlement.tx_hash,
-    isMock: settlement.is_mock,
   });
 
-  await updateTaskStatus(task.id, "paid");
-  await incrementTasksCompleted(submission.contributor_id);
+  // Already broadcast (crash between broadcast and receipt): re-verify; never re-pay.
+  if (row.tx_hash) {
+    const verified = service.verify ? await service.verify(baseRequest, row.tx_hash) : null;
+    if (!verified) {
+      await markSettlementFailed(row.id, "Broadcast settlement could not be verified");
+      throw HttpError.conflict("Settlement was broadcast but could not be verified");
+    }
+    return finalizeSettlement(row, verified);
+  }
+
+  // Budget guard, only when we are about to actually pay.
+  const paidCount = await countPaidTasksInJob(task.job_id);
+  if (!withinBudget(job.reward_per_task, paidCount + 1, job.budget)) {
+    await markSettlementFailed(row.id, "Job budget exhausted");
+    throw HttpError.conflict("Job budget exhausted");
+  }
+
+  let result: SettlementResult;
+  try {
+    result = await service.settle({
+      ...baseRequest,
+      onSubmitted: (txHash, isMock) => markSettlementSubmitted(row.id, txHash, isMock),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Settlement failed";
+    await markSettlementFailed(row.id, message);
+    throw error;
+  }
+
+  return finalizeSettlement(row, result);
+}
+
+/**
+ * Persist the receipt and move the task to `paid`. Idempotent: a retry after a
+ * partial failure reuses the existing receipt and transitions the task once.
+ */
+async function finalizeSettlement(
+  row: SettlementRow,
+  result: SettlementResult,
+): Promise<Receipt> {
+  let receipt = await loadReceiptBySubmission(row.submission_id);
+  if (!receipt) {
+    receipt = await insertReceipt({
+      submissionId: row.submission_id,
+      annotationHash: row.annotation_hash,
+      policyHash: row.policy_hash ?? "",
+      reviewRef: row.review_ref,
+      txHash: result.tx_hash,
+      isMock: result.is_mock,
+    });
+  }
+
+  await markSettlementConfirmed(row.id, result.tx_hash, result.is_mock, receipt.id);
+
+  const task = toTask(await loadTask(row.task_id));
+  if (task.status !== "paid") {
+    assertLegalTransition(task.status, "paid");
+    await updateTaskStatus(row.task_id, "paid");
+    await incrementTasksCompleted(row.contributor_id);
+  }
 
   return receipt;
+}
+
+/**
+ * Reconcile incomplete settlements: finalise any row that already broadcast a
+ * transaction (after re-verifying it on-chain) and report the rest. Admin-facing.
+ */
+export async function reconcileSettlements(
+  service: SettlementService = getDefaultSettlementService(),
+): Promise<{ finalized: string[]; unresolved: SettlementRow[] }> {
+  const incomplete = await listIncompleteSettlements();
+  const finalized: string[] = [];
+  const unresolved: SettlementRow[] = [];
+
+  for (const row of incomplete) {
+    if (row.tx_hash && service.verify) {
+      const request: SettlementRequest = {
+        jobId: row.job_id,
+        taskId: row.task_id,
+        submissionId: row.submission_id,
+        annotationHash: row.annotation_hash,
+        policyHash: row.policy_hash ?? "",
+        amount: row.amount,
+        payeeAddress: null,
+      };
+      const verified = await service.verify(request, row.tx_hash);
+      if (verified) {
+        await finalizeSettlement(row, verified);
+        finalized.push(row.id);
+        continue;
+      }
+    }
+    unresolved.push(row);
+  }
+
+  return { finalized, unresolved };
 }
 
 // ------------------------------------------------------------

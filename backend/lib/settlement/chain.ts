@@ -128,23 +128,7 @@ export class ChainSettlementService implements SettlementService {
   constructor(private readonly deps: ChainSettlementDeps) {}
 
   async settle(req: SettlementRequest): Promise<SettlementResult> {
-    if (!req.payeeAddress) {
-      throw HttpError.conflict("Contributor has no wallet address to pay");
-    }
-    if (!BYTES32_RE.test(req.annotationHash)) {
-      throw HttpError.internal("Annotation hash is not a 32-byte hex value");
-    }
-
-    const jobId = toBytes32Id(req.jobId);
-    const taskId = toBytes32Id(req.taskId);
-    const payee = req.payeeAddress as Address;
-
-    let amount: bigint;
-    try {
-      amount = parseEther(req.amount as `${number}`);
-    } catch {
-      throw HttpError.internal(`Reward is not a valid MON amount: ${req.amount}`);
-    }
+    const { jobId, taskId, payee, amount } = this.prepare(req);
 
     const data = encodeFunctionData({
       abi: jobEscrowAbi,
@@ -157,26 +141,88 @@ export class ChainSettlementService implements SettlementService {
       data,
     });
 
+    // Persist the hash before waiting, so a lost response is recoverable.
+    await req.onSubmitted?.(hash, false);
+
     const receipt = await this.deps.waitForTransactionReceipt({ hash });
     if (receipt.status !== "success") {
       throw HttpError.internal("Settlement transaction was not mined successfully");
     }
-
-    const event = decodeTaskSettled(receipt.logs, this.deps.escrowAddress);
-    if (!event) {
-      throw HttpError.internal("Settlement event not found in the transaction receipt");
-    }
-    const matches =
-      event.jobId === jobId &&
-      event.taskId === taskId &&
-      event.payee.toLowerCase() === payee.toLowerCase() &&
-      event.amount === amount &&
-      event.annotationHash === req.annotationHash;
-    if (!matches) {
-      throw HttpError.internal("Settlement event does not match the requested payout");
+    if (!this.matches(req, receipt.logs)) {
+      throw HttpError.internal(
+        "Settlement event not found or does not match the requested payout",
+      );
     }
 
     return { tx_hash: hash, is_mock: false };
+  }
+
+  /**
+   * Re-verify a previously broadcast transaction (crash recovery). Returns the
+   * real result only when the receipt is successful and the event matches;
+   * otherwise `null`, so an unverified payout is never recorded as real.
+   */
+  async verify(req: SettlementRequest, txHash: string): Promise<SettlementResult | null> {
+    let receipt: { status: "success" | "reverted"; logs: readonly Log[] };
+    try {
+      receipt = await this.deps.waitForTransactionReceipt({ hash: txHash as Hex });
+    } catch {
+      return null;
+    }
+    if (receipt.status !== "success") return null;
+    return this.matches(req, receipt.logs) ? { tx_hash: txHash, is_mock: false } : null;
+  }
+
+  /** Validate + derive the on-chain arguments, or throw. */
+  private prepare(req: SettlementRequest): {
+    jobId: Hex;
+    taskId: Hex;
+    payee: Address;
+    amount: bigint;
+  } {
+    if (!req.payeeAddress) {
+      throw HttpError.conflict("Contributor has no wallet address to pay");
+    }
+    if (!BYTES32_RE.test(req.annotationHash)) {
+      throw HttpError.internal("Annotation hash is not a 32-byte hex value");
+    }
+
+    let amount: bigint;
+    try {
+      amount = parseEther(req.amount as `${number}`);
+    } catch {
+      throw HttpError.internal(`Reward is not a valid MON amount: ${req.amount}`);
+    }
+
+    return {
+      jobId: toBytes32Id(req.jobId),
+      taskId: toBytes32Id(req.taskId),
+      payee: req.payeeAddress as Address,
+      amount,
+    };
+  }
+
+  /** True when the receipt contains a matching `TaskSettled` event. */
+  private matches(req: SettlementRequest, logs: readonly Log[]): boolean {
+    const event = decodeTaskSettled(logs, this.deps.escrowAddress);
+    if (!event) return false;
+    const jobId = toBytes32Id(req.jobId);
+    const taskId = toBytes32Id(req.taskId);
+
+    let amount: bigint;
+    try {
+      amount = parseEther(req.amount as `${number}`);
+    } catch {
+      return false;
+    }
+
+    return (
+      event.jobId === jobId &&
+      event.taskId === taskId &&
+      event.payee.toLowerCase() === (req.payeeAddress ?? "").toLowerCase() &&
+      event.amount === amount &&
+      event.annotationHash === req.annotationHash
+    );
   }
 }
 

@@ -170,6 +170,51 @@ describe("ChainSettlementService.settle", () => {
   });
 });
 
+describe("ChainSettlementService.onSubmitted", () => {
+  it("reports the broadcast hash as real before confirmation", async () => {
+    const seen: Array<[string, boolean]> = [];
+    await serviceFor([settledLog({})]).settle(
+      request({
+        onSubmitted: (hash, isMock) => {
+          seen.push([hash, isMock]);
+        },
+      }),
+    );
+    expect(seen).toEqual([[TX_HASH, false]]);
+  });
+});
+
+describe("ChainSettlementService.verify", () => {
+  it("returns the real result for a matching successful tx", async () => {
+    const service = serviceFor([settledLog({})]);
+    expect(await service.verify(request(), TX_HASH)).toEqual({
+      tx_hash: TX_HASH,
+      is_mock: false,
+    });
+  });
+
+  it("returns null for a reverted tx", async () => {
+    const service = serviceFor([settledLog({})], "reverted");
+    expect(await service.verify(request(), TX_HASH)).toBeNull();
+  });
+
+  it("returns null when the decoded event does not match", async () => {
+    const service = serviceFor([settledLog({ payee: OTHER })]);
+    expect(await service.verify(request(), TX_HASH)).toBeNull();
+  });
+
+  it("returns null when the receipt cannot be fetched", async () => {
+    const service = new ChainSettlementService({
+      escrowAddress: ESCROW,
+      sendTransaction: async () => TX_HASH,
+      waitForTransactionReceipt: async () => {
+        throw new Error("tx not found");
+      },
+    });
+    expect(await service.verify(request(), TX_HASH)).toBeNull();
+  });
+});
+
 describe("createChainSettlementService", () => {
   const baseEnv = {
     JOB_ESCROW_ADDRESS: ESCROW,
