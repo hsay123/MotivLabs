@@ -66,12 +66,12 @@ rejected. (Dashboard setting — cannot be changed from here.) The frontend runs
 
 ---
 
-## B5 (OPTIONAL / Tier 2) — no funded testnet key
+## B5 (OPTIONAL / Tier 2) — funded testnet keys — ✅ RESOLVED (2026-10-13)
 
-`backend/.env.local` has `JOB_ESCROW_ADDRESS` and `MONAD_RPC_URL` names but no
-`DEPLOYER_PRIVATE_KEY` / `SETTLEMENT_SIGNER_PRIVATE_KEY`. Real on-chain settlement cannot be demonstrated
-until a testnet-only key is funded with testnet MON. Foundry is installed, so contracts + local anvil tests
-are possible without it; the actual Monad deploy is left as exact commands in `docs/CHAIN-TODO.md` if reached.
+Two fresh testnet-only keys now exist (owner + relayer), both funded with testnet MON, and are kept in
+gitignored local files (`contracts/.env`, `backend/.env.local`). The exposed key
+(`0x8084a4eD8849B7B12E57f9e443ECe05E89838767`) stays on the preflight deny-list and is never used. See B8
+for the deploy + first real payout.
 
 ---
 
@@ -99,38 +99,40 @@ self-signed-certificate warning.
 
 ---
 
-## B8 — key custody + contract redeploy (NOT DONE; needs a human)
+## B8 — key custody + contract redeploy — ✅ RESOLVED for local/testnet (staging deploy still pending)
 
-A settlement private key was exposed in a screenshot and must be treated as **compromised**. The old
-contract also used a single address as both owner and relayer
-(`0x8084a4eD8849B7B12E57f9e443ECe05E89838767`). Consequences:
+A settlement private key was exposed in a screenshot and is treated as **compromised**. The old contract
+also used a single address as both owner and relayer (`0x8084a4eD8849B7B12E57f9e443ECe05E89838767`).
 
-- The corrected `JobEscrow` (owner/relayer split, `msg.sender` funder, `closeJob` gate, reentrancy guard)
-  is **not deployed**. The old, unmodified contract is still live at
-  `0x4A8E371E89cF9989682Ed0bD5cD1cCa457281fE8` (chain 10143).
-- Real settlement cannot be demonstrated until **two fresh testnet-only keys** exist and the **owner**
-  address is funded.
+What was done (2026-10-13):
 
-Exact action needed from a human:
+- Two fresh testnet-only keys exist: **owner** `0xbF7e6C11eBB7E2c3dE4d5fEbE940c1Df66d94585` (deployer +
+  funder) and **relayer** `0x0e25d279345FDFbA748319CB670223261B735d45` (backend signer). They are distinct,
+  funded, and never interchanged. Keys stay in gitignored local files; only addresses are written here.
+- The hardened `JobEscrow` (owner/relayer split, `msg.sender` funder, `closeJob` gate, reentrancy guard,
+  `SETTLEMENT_ABI_VERSION = 2`) is deployed to Monad testnet at
+  **`0xB5fA1538cE1BC468Af07Dd0A32431FAF8cd9755C`** (deploy tx
+  `0x5cd9c17e9d5d9d9b42c1da776091115d4fa5f813c30857ac77a421d2539a550d`).
+- On-chain verification: code present, `owner()` = owner, `relayers(relayer)` = true,
+  `SETTLEMENT_ABI_VERSION()` = 2.
+- The fail-closed preflight passes (`cd backend && npm run settlement:preflight` → `mode=chain ok=true`,
+  chainId 10143, all checks PASS), and the backend enforces the same preflight at runtime before selecting
+  the chain service. The built-in deny-list always includes the exposed address.
+- **First real payout verified on-chain**: video job → contributor claim/annotate/submit → human reviewer
+  accept → `POST /api/settlement/accept`. Receipt `is_mock = false`, tx
+  `0x1f4a132843e7b048a3e948ab14354c20f058d09b3fa982501bb3fba11ae76044`: `TaskSettled`
+  (jobId/taskId from `keccak256(utf8(uuid))`, payee = contributor wallet, amount = 1 MON, annotationHash =
+  the accepted submission hash). Contributor balance went 0 → 1 MON. Reconciliation is idempotent
+  (`finalized=[]`, `unresolved=[]`; a second settle returns the same receipt).
 
-1. Generate a fresh **owner** key and a fresh **relayer** key (testnet only). Share only the public
-   addresses — never the keys.
-2. Fund the owner address at `https://faucet.monad.xyz`; fund the **relayer** too (it pays gas to
-   broadcast `settle`, and the funder of the test job needs testnet MON as well).
-3. Deploy with the two public addresses (see `docs/STAGING.md` §4.2).
-4. Set the new `JOB_ESCROW_ADDRESS` and the fresh relayer `SETTLEMENT_PRIVATE_KEY` on `zeno-api`, and put
-   the old compromised address in `SETTLEMENT_FORBIDDEN_ADDRESS` so the preflight keeps refusing it.
+Still a human action (deliberately **not** done here — no production secrets were touched):
 
-Before enabling anything, run the backend fail-closed preflight (`cd backend && npm run
-settlement:preflight`). It passes only when the RPC reports chain 10143, the escrow has code, the
-escrow reports `SETTLEMENT_ABI_VERSION = 2` (so a stale pre-hardening deployment is rejected), the
-configured signer is an allow-listed relayer that is **not** the owner, and
-`SETTLEMENT_FORBIDDEN_ADDRESS` is present with no configured address on it. The backend enforces
-this same preflight **at runtime** before selecting the chain service, and it always merges a
-built-in list containing the exposed address, so clearing or mis-setting the env variable can
-never re-enable it. Any failing check keeps `MockSettlementService` and `is_mock = true`.
+1. On `zeno-api` (Vercel), set the new `JOB_ESCROW_ADDRESS` and the fresh relayer `SETTLEMENT_PRIVATE_KEY`,
+   and set `SETTLEMENT_FORBIDDEN_ADDRESS` to keep refusing the exposed address.
+2. Confirm `npm run settlement:preflight` passes in that environment before enabling chain settlement.
 
-Until then, `JOB_ESCROW_ADDRESS` stays unset and receipts stay `is_mock = true`.
+The old, unmodified contract at `0x4A8E371E89cF9989682Ed0bD5cD1cCa457281fE8` predates the hardening and is
+no longer used.
 
 ## B9 — Privy allowed origins for the live domains
 

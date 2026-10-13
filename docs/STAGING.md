@@ -1,8 +1,10 @@
 # Staging deployment — Zeno
 
-Status: **app layer deployed and verified on Vercel; real settlement pending a
-funded Monad-testnet key.** Frontend and backend are independent Vercel
-projects. No secret values are written here.
+Status: **app layer deployed and verified on Vercel; real settlement has been
+demonstrated end-to-end on Monad testnet against the hardened escrow, but the
+Vercel `zeno-api` project has not yet been switched to chain settlement.**
+Frontend and backend are independent Vercel projects. No secret values are
+written here.
 
 ## 1. Topology (as built)
 
@@ -12,7 +14,7 @@ projects. No secret values are written here.
 | **Backend** | `backend/`, API-only Next.js app | Vercel — `zeno-api` |
 | **Database + Storage** | Supabase project `sfebambrdcfqrdmetflw` | managed (shared with dev) |
 | **Auth** | Privy app | managed |
-| **Settlement** | `contracts/JobEscrow.sol` | Monad testnet (chain 10143). **Old contract live at `0x4A8E371E89cF9989682Ed0bD5cD1cCa457281fE8`; the corrected JobEscrow is NOT deployed yet.** See §4.2 |
+| **Settlement** | `contracts/JobEscrow.sol` | Monad testnet (chain 10143). **Hardened JobEscrow deployed at `0xB5fA1538cE1BC468Af07Dd0A32431FAF8cd9755C` (ABI v2).** Staging (`zeno-api`) is still mock; local dev has chain settlement enabled. See §4.2 |
 
 URLs:
 
@@ -72,8 +74,8 @@ Environment variables (production; secrets are Vercel-encrypted):
 | `DEV_AUTH_BYPASS` | `false` |
 | `MONAD_RPC_URL` | `https://testnet-rpc.monad.xyz` |
 | `LEASE_MINUTES` / thresholds | defaults |
-| `SETTLEMENT_PRIVATE_KEY` | **secret** (set; inert until the escrow address is set) |
-| `JOB_ESCROW_ADDRESS` | **point at the OLD contract only until the corrected JobEscrow is deployed** (§4.2). Leave unset to keep settlement honestly mock |
+| `SETTLEMENT_PRIVATE_KEY` | **secret** (relayer key; inert until the escrow address is set) |
+| `JOB_ESCROW_ADDRESS` | hardened escrow `0xB5fA…755C`; **not set on `zeno-api` yet** — staging stays mock until §4.2 is applied there. Set locally to enable chain settlement (§4.2) |
 | `SETTLEMENT_FORBIDDEN_ADDRESS` | comma-separated known-compromised addresses; **required** — real settlement stays off while it is missing (§4.2) |
 | `SETTLEMENT_RELAYER` (deploy input) | public address only; the keys live in `contracts/.env` (git-ignored), never in Vercel |
 
@@ -140,7 +142,7 @@ Add **`https://zeno-web-app.vercel.app`** to the Privy app's allowed origins
 (and redirect URLs if email/OTP is on). Without it, SIWE/login from the staging
 origin fails. This is a dashboard action.
 
-### 4.2 Rotate keys, then deploy the corrected JobEscrow
+### 4.2 Rotate keys, deploy the corrected JobEscrow ✅ (testnet done; Vercel step pending)
 
 **The old key is treated as compromised.** A settlement private key was exposed
 in a screenshot, and the previously deployed contract used one address as both
@@ -164,8 +166,18 @@ export SETTLEMENT_RELAYER=0x…     # fresh relayer public address (≠ owner)
 forge script script/Deploy.s.sol:DeployJobEscrow --rpc-url monad_testnet --broadcast
 ```
 
-The corrected contract is **not deployed yet**; until it is, leave
-`JOB_ESCROW_ADDRESS` unset so receipts stay `is_mock = true`.
+Done on Monad testnet (2026-10-13): owner `0xbF7e6C11eBB7E2c3dE4d5fEbE940c1Df66d94585`
+and relayer `0x0e25d279345FDFbA748319CB670223261B735d45` were generated and
+funded, and the hardened `JobEscrow` was deployed at
+**`0xB5fA1538cE1BC468Af07Dd0A32431FAF8cd9755C`** (deploy tx
+`0x5cd9c17e9d5d9d9b42c1da776091115d4fa5f813c30857ac77a421d2539a550d`).
+On-chain: `owner()` = owner, `relayers(relayer)` = true, `SETTLEMENT_ABI_VERSION()` = 2.
+A real 1 MON payout was then settled end-to-end through the app and verified
+on-chain (tx `0x1f4a132843e7b048a3e948ab14354c20f058d09b3fa982501bb3fba11ae76044`,
+`is_mock = false`). Locally `JOB_ESCROW_ADDRESS` points at this contract, so the
+preflight passes and the backend selects `ChainSettlementService`.
+
+The remaining step is to apply the same settings on Vercel (§4.2 step 3).
 
 3. Set the new `JOB_ESCROW_ADDRESS`, the fresh `SETTLEMENT_PRIVATE_KEY`, and
    `SETTLEMENT_FORBIDDEN_ADDRESS` (the old compromised address, at minimum) on
@@ -238,16 +250,22 @@ npx tsx scripts/set-role.ts you+admin@example.com admin
   `POST /api/settlement/reconcile` (re-verifies on-chain; never re-pays). See
   `backend/supabase/migrations/009_settlements_ledger.sql` and
   `backend/lib/settlement/service.ts`.
-- Real settlement is still off: the corrected `JobEscrow` is not deployed and no
-  fresh owner/relayer keys are funded yet (§4.2). Receipts stay `is_mock = true`.
-  The backend now re-runs the fail-closed preflight **at runtime** before it will
-  ever sign: real settlement is selected only when the three settings exist AND
-  the preflight passes (chain `10143`, escrow code present, escrow reports
-  `SETTLEMENT_ABI_VERSION`, signer is an allow-listed relayer different from the
-  owner, deny-list present and clean, including a built-in list of known-compromised
-  addresses). Otherwise `MockSettlementService` stays in effect. The live escrow
-  `0x4A8E…1fE8` is a **stale pre-hardening contract** and fails the ABI-version
+- Staging (`zeno-api`) still runs mock settlement: `JOB_ESCROW_ADDRESS` is unset
+  there, so receipts stay `is_mock = true` until §4.2 step 3 is applied. The
+  hardened `JobEscrow` **is** deployed (`0xB5fA…755C`) and a real payout has been
+  verified against it locally. The backend re-runs the fail-closed preflight **at
+  runtime** before it will ever sign: real settlement is selected only when the
+  settings exist AND the preflight passes (chain `10143`, escrow code present,
+  escrow reports `SETTLEMENT_ABI_VERSION = 2`, signer is an allow-listed relayer
+  different from the owner, deny-list present and clean, including a built-in list
+  of known-compromised addresses). Otherwise `MockSettlementService` stays in
+  effect. The stale pre-hardening escrow `0x4A8E…1fE8` fails the ABI-version
   check, so it can never receive real payouts.
+- Running the full local e2e suite **with chain settlement enabled**: `s5` asserts
+  a **mock** receipt, so it is expected to fail when `JOB_ESCROW_ADDRESS` is set.
+  Unset it (or point at a mock backend) for s5; every other spec is
+  mode-independent. `e2e/s7-real-settlement.spec.ts` self-skips unless `S7_LIVE=1`
+  and a funded fixture are present.
 - CVAT is **not integrated**. The supported editor is the built-in workspace
   (image boxes; video timeline with seek, Set start/Set end and debounced
   autosave). The adapter design, mapping and the host/credentials a human must
