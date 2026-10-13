@@ -87,8 +87,24 @@ export const currentUserSchema = z.object({
   role: userRoleSchema,
   status: userStatusSchema,
   created_at: z.string(),
+  onboarding_completed: z.boolean(),
+  onboarding_account_type: z.enum(["buyer", "contributor"]).nullable(),
+  organization_id: z.string().nullable(),
   profile: meProfileSchema.nullable(),
 });
+
+export const onboardingCompleteRequestSchema = z.object({
+  account_type: z.enum(["buyer", "contributor"]),
+  organization_name: z.string().min(1).max(100).optional(),
+});
+
+export const onboardingCompleteResponseSchema = z.object({
+  onboarding_completed: z.boolean(),
+  redirect: z.string(),
+});
+
+export type OnboardingCompleteRequest = z.infer<typeof onboardingCompleteRequestSchema>;
+export type OnboardingCompleteResponse = z.infer<typeof onboardingCompleteResponseSchema>;
 
 export const projectSchema = z.object({
   id: z.string(),
@@ -568,6 +584,7 @@ export const platformPaths = {
   earnings: () => "/api/earnings",
   adminUsers: () => "/api/admin/users",
   adminUserRole: (id: string) => `/api/admin/users/${id}/role`,
+  onboardingComplete: () => "/api/onboarding/complete",
 } as const;
 
 export const isPlatformConfigured = (): boolean =>

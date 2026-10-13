@@ -32,6 +32,9 @@ export interface AuthUser {
   status: UserStatus;
   created_at: string;
   updated_at: string;
+  onboarding_completed: boolean;
+  onboarding_account_type: "buyer" | "contributor" | null;
+  organization_id: string | null;
 }
 
 export interface PrivyClaims {

@@ -86,6 +86,9 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   created_at: string;
+  onboarding_completed: boolean;
+  onboarding_account_type: "buyer" | "contributor" | null;
+  organization_id: string | null;
 }
 
 /** Subset of a contributor profile returned by GET /api/me. */
