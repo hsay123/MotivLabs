@@ -287,6 +287,11 @@ export async function reconcileSettlements(
 
   for (const row of incomplete) {
     if (row.tx_hash && service.verify) {
+      // Re-verify against the contributor's real payout address. Passing `null`
+      // here can never match the on-chain `TaskSettled.payee`, so a genuine
+      // settlement would be stuck unresolved forever (and a recovery could not
+      // finalise it). A contributor with no wallet address stays unresolved.
+      const payeeAddress = await loadUserWalletAddress(row.contributor_id);
       const request: SettlementRequest = {
         jobId: row.job_id,
         taskId: row.task_id,
@@ -294,7 +299,7 @@ export async function reconcileSettlements(
         annotationHash: row.annotation_hash,
         policyHash: row.policy_hash ?? "",
         amount: row.amount,
-        payeeAddress: null,
+        payeeAddress,
       };
       const verified = await service.verify(request, row.tx_hash);
       if (verified) {
