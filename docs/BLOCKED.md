@@ -96,3 +96,33 @@ and ERC-4361 defaults it to `https`, so the origin appeared to differ. Fixed by 
 (gitignored) by `scripts/ensure-dev-cert.mjs`; the API is proxied same-origin under `/platform`.
 Verified by `scripts/verify-wallet-siwe.mjs`. Re-run `sudo mkcert -install` once to remove the browser's
 self-signed-certificate warning.
+
+---
+
+## B8 — key custody + contract redeploy (NOT DONE; needs a human)
+
+A settlement private key was exposed in a screenshot and must be treated as **compromised**. The old
+contract also used a single address as both owner and relayer
+(`0x8084a4eD8849B7B12E57f9e443ECe05E89838767`). Consequences:
+
+- The corrected `JobEscrow` (owner/relayer split, `msg.sender` funder, `closeJob` gate, reentrancy guard)
+  is **not deployed**. The old, unmodified contract is still live at
+  `0x4A8E371E89cF9989682Ed0bD5cD1cCa457281fE8` (chain 10143).
+- Real settlement cannot be demonstrated until **two fresh testnet-only keys** exist and the **owner**
+  address is funded.
+
+Exact action needed from a human:
+
+1. Generate a fresh **owner** key and a fresh **relayer** key (testnet only). Share only the public
+   addresses — never the keys.
+2. Fund the owner address at `https://faucet.monad.xyz`.
+3. Deploy with the two public addresses (see `docs/STAGING.md` §4.2).
+4. Set the new `JOB_ESCROW_ADDRESS` and the fresh relayer `SETTLEMENT_PRIVATE_KEY` on `zeno-api`.
+
+Until then, `JOB_ESCROW_ADDRESS` stays unset and receipts stay `is_mock = true`.
+
+## B9 — Privy allowed origins for the live domains
+
+`https://zeno-web-app.vercel.app` must be added under the Privy app's **Allowed Origins** (and redirect
+URLs if email/OTP is enabled) or browser login on staging is rejected. Dashboard-only action; not done
+from here. `https://localhost:3000` (B4) is also still required for local development.

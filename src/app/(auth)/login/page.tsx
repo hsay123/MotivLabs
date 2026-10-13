@@ -6,7 +6,7 @@ import { Check } from "@/components/ui/icons";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to your Motive Labs workspace.",
+  description: "Sign in to your Zeno workspace.",
 };
 
 const points = [

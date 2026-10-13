@@ -1,13 +1,27 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { QueryView, InlineError, InfoNote } from "@/components/product/AsyncView";
 import { Badge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { AlertTriangle, Check, Info } from "@/components/ui/icons";
-import { formatTimecode } from "@/lib/utils/format";
+import {
+  clampBox,
+  cornerAt,
+  fractionToMs,
+  hitTestBoxes,
+  naturalScale,
+  resizeBox,
+  segmentBar,
+  timeFraction,
+  moveBox,
+  type Bounds,
+  type Box,
+  type ResizeHandle,
+} from "@/lib/annotation/geometry";
+import { formatDateTime, formatTimecode } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
 import { useAction, useTask, useWorkPayload } from "@/lib/api/live";
 import {
@@ -138,18 +152,33 @@ function WorkspaceInner({
       : [],
   );
   const [activeClass, setActiveClass] = useState<string>(task.label_list?.[0] ?? "other");
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
-  const [drawing, setDrawing] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(
-    null,
-  );
+  const [natural, setNatural] = useState<Bounds | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [durationMs, setDurationMs] = useState(0);
+  const [positionMs, setPositionMs] = useState(0);
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(work.saved_at);
   const [result, setResult] = useState<Submission | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [autosave, setAutosave] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const editable = EDITABLE_STATUSES.includes(task.status);
   const labels = useMemo(() => task.label_list ?? [], [task.label_list]);
   const loadedFrom = work.source;
+
+  /**
+   * A fingerprint of the annotation itself, so autosave reacts to real content
+   * changes rather than to every render. `savedFingerprint` records what the
+   * platform last acknowledged — that is what makes "saved" mean saved and not
+   * just "typed".
+   */
+  const fingerprint = useMemo(
+    () => JSON.stringify(task.modality === "video" ? segments.map(stripId) : boxes.map(stripId)),
+    [task.modality, segments, boxes],
+  );
+  const savedFingerprint = useRef<string | null>(null);
+  const saveDraftRef = useRef<((mode?: "manual" | "autosave") => Promise<void>) | null>(null);
   const buildPayload = (): AnnotationPayload =>
     task.modality === "video"
       ? {
@@ -215,8 +244,9 @@ function WorkspaceInner({
   const empty = task.modality === "video" ? segments.length === 0 : boxes.length === 0;
   const canSubmit = editable && issues.length === 0 && !empty && !pending;
 
-  const saveDraft = async () => {
-    setNotice(null);
+  const saveDraft = async (mode: "manual" | "autosave" = "manual") => {
+    if (mode === "manual") setNotice(null);
+    if (mode === "autosave") setAutosave("saving");
     const payload = buildPayload();
     const saved = await run((client) =>
       client.put(draftSaveResultSchema, platformPaths.saveDraft(taskId), {
@@ -227,9 +257,40 @@ function WorkspaceInner({
     if (saved) {
       setDirty(false);
       setSavedAt(saved.saved_at);
-      setNotice("Draft saved to the platform.");
+      savedFingerprint.current = fingerprint;
+      if (mode === "manual") {
+        setNotice("Draft saved to the platform.");
+      } else {
+        setAutosave("saved");
+      }
+    } else if (mode === "autosave") {
+      setAutosave("error");
     }
   };
+
+  useEffect(() => {
+    saveDraftRef.current = saveDraft;
+  });
+
+  /**
+   * Debounced autosave. It only fires once the editor content actually differs
+   * from what the platform last acknowledged, and it never claims success: the
+   * status text is driven by the real request outcome.
+   */
+  useEffect(() => {
+    if (!editable || pending) return;
+    if (savedFingerprint.current === null) {
+      // First pass: the payload loaded from the platform is the baseline.
+      savedFingerprint.current = fingerprint;
+      return;
+    }
+    if (fingerprint === savedFingerprint.current) return;
+    setAutosave("idle");
+    const timer = setTimeout(() => {
+      void saveDraftRef.current?.("autosave");
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [fingerprint, editable, pending]);
 
   const submit = async () => {
     setNotice(null);
@@ -281,39 +342,69 @@ function WorkspaceInner({
           <div className="mt-4">
             {task.signed_media_url ? (
               task.modality === "video" ? (
-                <video
-                  src={task.signed_media_url}
-                  controls
-                  className="aspect-video w-full rounded-lg border border-line bg-night"
-                />
+                <div className="space-y-3">
+                  <video
+                    ref={videoRef}
+                    src={task.signed_media_url}
+                    controls
+                    className="aspect-video w-full rounded-lg border border-line bg-night"
+                    onLoadedMetadata={(event) => {
+                      const seconds = event.currentTarget.duration;
+                      setDurationMs(Number.isFinite(seconds) ? Math.round(seconds * 1000) : 0);
+                    }}
+                    onTimeUpdate={(event) =>
+                      setPositionMs(Math.round(event.currentTarget.currentTime * 1000))
+                    }
+                    onSeeked={(event) =>
+                      setPositionMs(Math.round(event.currentTarget.currentTime * 1000))
+                    }
+                  />
+                  <Timeline
+                    segments={segments}
+                    durationMs={durationMs}
+                    positionMs={positionMs}
+                    selectedId={selectedSegmentId}
+                    editable={editable}
+                    onSelect={setSelectedSegmentId}
+                    onSeek={(ms) => {
+                      setPositionMs(ms);
+                      const video = videoRef.current;
+                      if (video) video.currentTime = ms / 1000;
+                    }}
+                    onSetBoundary={(edge) => {
+                      if (durationMs <= 0) return;
+                      setSegments((prev) => {
+                        const target =
+                          prev.find((item) => item.id === selectedSegmentId) ??
+                          prev[prev.length - 1];
+                        if (!target) return prev;
+                        const ms = Math.min(Math.max(0, positionMs), durationMs);
+                        const next =
+                          edge === "start"
+                            ? { ...target, start_ms: Math.min(ms, target.end_ms - 1) }
+                            : { ...target, end_ms: Math.max(ms, target.start_ms + 1) };
+                        return prev.map((item) => (item.id === target.id ? next : item));
+                      });
+                      setDirty(true);
+                    }}
+                  />
+                </div>
               ) : (
                 <ImageCanvas
                   src={task.signed_media_url}
                   boxes={boxes}
-                  drawing={drawing}
                   natural={natural}
                   editable={editable}
-                  onNatural={setNatural}
-                  onPointerDown={(point) => setDrawing(point)}
-                  onPointerMove={(point) =>
-                    setDrawing((prev) => (prev ? { ...prev, x1: point.x1, y1: point.y1 } : prev))
-                  }
-                  onPointerUp={(point) => {
-                    if (!drawing || !natural) {
-                      setDrawing(null);
-                      return;
-                    }
-                    const scaleX = natural.w / point.w;
-                    const scaleY = natural.h / point.h;
-                    const x = Math.max(0, Math.round(Math.min(drawing.x0, point.x1) * scaleX));
-                    const y = Math.max(0, Math.round(Math.min(drawing.y0, point.y1) * scaleY));
-                    const w = Math.round(Math.abs(point.x1 - drawing.x0) * scaleX);
-                    const h = Math.round(Math.abs(point.y1 - drawing.y0) * scaleY);
-                    if (w >= 1 && h >= 1) {
-                      setBoxes((prev) => [...prev, { id: newId(), x, y, w, h, class: activeClass }]);
-                      setDirty(true);
-                    }
-                    setDrawing(null);
+                  onResizeImage={setNatural}
+                  onAddBox={(box) => {
+                    setBoxes((prev) => [...prev, { ...box, id: newId(), class: activeClass }]);
+                    setDirty(true);
+                  }}
+                  onUpdateBox={(id, box) => {
+                    setBoxes((prev) =>
+                      prev.map((item) => (item.id === id ? { ...item, ...box } : item)),
+                    );
+                    setDirty(true);
                   }}
                   activeClassControl={
                     <label className="flex items-center gap-2 text-caption text-ink-3">
@@ -733,7 +824,7 @@ function WorkspaceInner({
                     type="button"
                     variant="secondary"
                     disabled={!editable || pending}
-                    onClick={() => void saveDraft()}
+                    onClick={() => void saveDraft("manual")}
                   >
                     Save draft
                   </Button>
@@ -742,7 +833,17 @@ function WorkspaceInner({
                   </Button>
                 </div>
                 {dirty ? (
-                  <p className="mt-3 text-caption text-pending-fg">Unsaved changes.</p>
+                  <p className="mt-3 text-caption text-pending-fg">
+                    {autosave === "saving"
+                      ? "Saving draft…"
+                      : autosave === "error"
+                        ? "Unsaved changes — autosave failed. Use “Save draft”."
+                        : "Unsaved changes — autosaving shortly."}
+                  </p>
+                ) : savedAt ? (
+                  <p className="mt-3 text-caption text-success-fg">
+                    Draft saved {formatDateTime(savedAt)}.
+                  </p>
                 ) : null}
                 {notice ? (
                   <p className="mt-3 text-caption text-success-fg">{notice}</p>
@@ -776,34 +877,48 @@ function WorkspaceInner({
 function ImageCanvas({
   src,
   boxes,
-  drawing,
   natural,
   editable,
-  onNatural,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
+  onResizeImage,
+  onAddBox,
+  onUpdateBox,
   activeClassControl,
 }: {
   src: string;
   boxes: DraftBox[];
-  drawing: { x0: number; y0: number; x1: number; y1: number } | null;
-  natural: { w: number; h: number } | null;
+  natural: Bounds | null;
   editable: boolean;
-  onNatural: (size: { w: number; h: number }) => void;
-  onPointerDown: (point: { x0: number; y0: number; x1: number; y1: number }) => void;
-  onPointerMove: (point: { x1: number; y1: number }) => void;
-  onPointerUp: (point: {
-    x1: number;
-    y1: number;
-    w: number;
-    h: number;
-  }) => void;
+  onResizeImage: (bounds: Bounds) => void;
+  onAddBox: (box: Box) => void;
+  onUpdateBox: (id: string, box: Box) => void;
   activeClassControl: React.ReactNode;
 }) {
+  const [drawing, setDrawing] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(
+    null,
+  );
+  const gesture = useRef<
+    | { kind: "draw"; startX: number; startY: number }
+    | { kind: "move"; id: string; startX: number; startY: number; startBox: Box }
+    | {
+        kind: "resize";
+        id: string;
+        handle: ResizeHandle;
+        startX: number;
+        startY: number;
+        startBox: Box;
+      }
+    | null
+  >(null);
+  const display = useRef<Bounds>({ w: 0, h: 0 });
+
   const rectOf = (event: React.PointerEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top, w: rect.width, h: rect.height };
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+      w: rect.width,
+      h: rect.height,
+    };
   };
 
   const pct = (value: number, total: number) => `${(value / total) * 100}%`;
@@ -817,29 +932,82 @@ function ImageCanvas({
           editable ? "cursor-crosshair" : "cursor-default",
         )}
         onPointerDown={(event) => {
-          if (!editable) return;
+          if (!editable || !natural) return;
           const point = rectOf(event);
+          display.current = { w: point.w, h: point.h };
+          const scale = naturalScale({ w: point.w, h: point.h }, natural);
+          const index = hitTestBoxes(boxes, point.x * scale.x, point.y * scale.y);
           event.currentTarget.setPointerCapture(event.pointerId);
-          onPointerDown({ x0: point.x, y0: point.y, x1: point.x, y1: point.y });
+          if (index >= 0) {
+            const box = boxes[index];
+            if (!box) return;
+            const startBox: Box = { x: box.x, y: box.y, w: box.w, h: box.h };
+            const handle = cornerAt({ x: point.x * scale.x, y: point.y * scale.y }, startBox, 10 * scale.x);
+            gesture.current = handle
+              ? { kind: "resize", id: box.id, handle, startX: point.x, startY: point.y, startBox }
+              : { kind: "move", id: box.id, startX: point.x, startY: point.y, startBox };
+            return;
+          }
+          gesture.current = { kind: "draw", startX: point.x, startY: point.y };
+          setDrawing({ x0: point.x, y0: point.y, x1: point.x, y1: point.y });
         }}
         onPointerMove={(event) => {
-          if (!drawing) return;
+          const active = gesture.current;
+          if (!active || !natural) return;
           const point = rectOf(event);
-          onPointerMove({ x1: point.x, y1: point.y });
+          if (active.kind === "draw") {
+            setDrawing((prev) => (prev ? { ...prev, x1: point.x, y1: point.y } : prev));
+            return;
+          }
+          const scale = naturalScale(display.current, natural);
+          const dx = (point.x - active.startX) * scale.x;
+          const dy = (point.y - active.startY) * scale.y;
+          onUpdateBox(
+            active.id,
+            active.kind === "move"
+              ? moveBox(active.startBox, dx, dy, natural)
+              : resizeBox(active.startBox, active.handle, dx, dy, natural),
+          );
         }}
         onPointerUp={(event) => {
-          if (!drawing) return;
+          const active = gesture.current;
+          gesture.current = null;
+          if (!active || !natural) {
+            setDrawing(null);
+            return;
+          }
+          if (active.kind !== "draw") return;
           const point = rectOf(event);
-          onPointerUp({ x1: point.x, y1: point.y, w: point.w, h: point.h });
+          const scale = naturalScale(display.current, natural);
+          const width = Math.abs(point.x - active.startX) * scale.x;
+          const height = Math.abs(point.y - active.startY) * scale.y;
+          if (width >= 1 && height >= 1) {
+            onAddBox(
+              clampBox(
+                {
+                  x: Math.min(active.startX, point.x) * scale.x,
+                  y: Math.min(active.startY, point.y) * scale.y,
+                  w: width,
+                  h: height,
+                },
+                natural,
+              ),
+            );
+          }
+          setDrawing(null);
+        }}
+        onPointerCancel={() => {
+          gesture.current = null;
+          setDrawing(null);
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
           alt="Task media"
-          className="block h-auto w-full"
+          className="pointer-events-none block h-auto w-full"
           onLoad={(event) =>
-            onNatural({
+            onResizeImage({
               w: event.currentTarget.naturalWidth,
               h: event.currentTarget.naturalHeight,
             })
@@ -875,6 +1043,121 @@ function ImageCanvas({
           />
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Seek/scrub track for video tasks. Segments are drawn as bars; the playhead
+ * follows the video. Boundaries are only ever set from the *current* playhead,
+ * so a contributor marks the frame they can actually see.
+ */
+function Timeline({
+  segments,
+  durationMs,
+  positionMs,
+  selectedId,
+  editable,
+  onSelect,
+  onSeek,
+  onSetBoundary,
+}: {
+  segments: DraftSegment[];
+  durationMs: number;
+  positionMs: number;
+  selectedId: string | null;
+  editable: boolean;
+  onSelect: (id: string) => void;
+  onSeek: (ms: number) => void;
+  onSetBoundary: (edge: "start" | "end") => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const ready = durationMs > 0;
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!editable || !ready}
+            onClick={() => onSetBoundary("start")}
+          >
+            Set start
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!editable || !ready}
+            onClick={() => onSetBoundary("end")}
+          >
+            Set end
+          </Button>
+          <span className="text-caption text-ink-4">
+            at <span className="font-mono">{formatTimecode(positionMs)}</span>
+          </span>
+        </div>
+        <span className="font-mono text-[12px] text-ink-4">
+          {formatTimecode(positionMs)} / {formatTimecode(durationMs)}
+        </span>
+      </div>
+      <div
+        ref={trackRef}
+        role="slider"
+        aria-label="Video timeline"
+        aria-valuemin={0}
+        aria-valuemax={Math.max(0, durationMs)}
+        aria-valuenow={Math.round(positionMs)}
+        aria-valuetext={formatTimecode(positionMs)}
+        tabIndex={0}
+        onClick={(event) => {
+          if (!ready || !trackRef.current) return;
+          const rect = trackRef.current.getBoundingClientRect();
+          onSeek(fractionToMs((event.clientX - rect.left) / rect.width, durationMs));
+        }}
+        onKeyDown={(event) => {
+          if (!ready) return;
+          if (event.key === "ArrowRight") onSeek(Math.min(durationMs, positionMs + 500));
+          if (event.key === "ArrowLeft") onSeek(Math.max(0, positionMs - 500));
+        }}
+        className={cn(
+          "relative mt-2 h-10 w-full overflow-hidden rounded-md border border-line bg-surface",
+          ready ? "cursor-pointer" : "cursor-default opacity-60",
+        )}
+      >
+        {segments.map((segment) => {
+          const { leftPct, widthPct } = segmentBar(segment, durationMs);
+          const active = segment.id === selectedId;
+          return (
+            <button
+              key={segment.id}
+              type="button"
+              aria-label={`Select segment ${segment.action_label}`}
+              onClick={() => onSelect(segment.id)}
+              className={cn(
+                "absolute top-1.5 bottom-1.5 rounded-sm border-2",
+                active
+                  ? "border-accent-600 bg-accent-500/30"
+                  : "border-accent-400 bg-accent-500/15",
+              )}
+              style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+            />
+          );
+        })}
+        {ready ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 w-0.5 bg-accent-600"
+            style={{ left: `${timeFraction(positionMs, durationMs) * 100}%` }}
+          />
+        ) : null}
+      </div>
+      <p className="mt-2 text-caption text-ink-4">
+        {segments.length === 0
+          ? "Add a segment, then scrub and use Set start / Set end to place its boundaries."
+          : "Scrub the video or click the track, then set the selected segment's boundaries."}
+      </p>
     </div>
   );
 }

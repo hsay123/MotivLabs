@@ -11,7 +11,7 @@ import { AlertTriangle, Check, Info } from "@/components/ui/icons";
 export const metadata: Metadata = {
   title: "How it works",
   description:
-    "The end-to-end robotics data lifecycle: source and segment, claim and lease, annotate and validate, review and decide, accept and settle, package and deliver.",
+    "The end-to-end image and video data lifecycle: source and segment, claim and lease, annotate and validate, review and decide, accept and settle, package and deliver.",
 };
 
 export default function HowItWorksPage() {

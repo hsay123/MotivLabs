@@ -10,7 +10,7 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { Button } from "@/components/ui/Button";
 import { TextAreaField } from "@/components/ui/Field";
 import { FileText } from "@/components/ui/icons";
-import { formatDate, formatUsd } from "@/lib/utils/format";
+import { formatDate, formatMon } from "@/lib/utils/format";
 import { appealSchema, platformPaths, type EarningsSummary } from "@/lib/api/platform";
 
 type EarningsTask = EarningsSummary["tasks"][number];
@@ -63,7 +63,7 @@ export function ContributorSubmissions() {
                 />
                 <Stat
                   label="Pending amount"
-                  value={formatUsd(Number(summary.total_pending))}
+                  value={formatMon(summary.total_pending)}
                   hint="Accepted but not yet settled"
                   tone="muted"
                 />
@@ -132,7 +132,7 @@ export function ContributorSubmissions() {
                               <StatusChip status={task.status} />
                             </td>
                             <td className="px-5 py-3 text-ink-3 tnum">
-                              {formatUsd(Number(task.reward))}
+                              {formatMon(task.reward)}
                             </td>
                             <td className="px-5 py-3 text-ink-3">
                               {formatDate(task.submitted_at)}

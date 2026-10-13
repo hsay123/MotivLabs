@@ -122,3 +122,174 @@ export async function incrementTasksCompleted(userId: string): Promise<void> {
     throw HttpError.internal(`Failed to update profile: ${updateError.message}`);
   }
 }
+
+// ------------------------------------------------------------
+// Settlement ledger (crash-safe, one row per task)
+// ------------------------------------------------------------
+
+export type SettlementStatus = "pending" | "submitted" | "confirmed" | "failed";
+
+export interface SettlementRow {
+  id: string;
+  task_id: string;
+  submission_id: string;
+  job_id: string;
+  contributor_id: string;
+  status: SettlementStatus;
+  tx_hash: string | null;
+  is_mock: boolean | null;
+  amount: string;
+  annotation_hash: string;
+  policy_hash: string | null;
+  review_ref: string | null;
+  receipt_id: string | null;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export function toSettlement(row: Row): SettlementRow {
+  return {
+    id: row.id as string,
+    task_id: row.task_id as string,
+    submission_id: row.submission_id as string,
+    job_id: row.job_id as string,
+    contributor_id: row.contributor_id as string,
+    status: row.status as SettlementStatus,
+    tx_hash: (row.tx_hash as string | null) ?? null,
+    is_mock: (row.is_mock as boolean | null) ?? null,
+    amount: String(row.amount),
+    annotation_hash: row.annotation_hash as string,
+    policy_hash: (row.policy_hash as string | null) ?? null,
+    review_ref: (row.review_ref as string | null) ?? null,
+    receipt_id: (row.receipt_id as string | null) ?? null,
+    error: (row.error as string | null) ?? null,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+  };
+}
+
+export interface BeginSettlementInput {
+  taskId: string;
+  submissionId: string;
+  jobId: string;
+  contributorId: string;
+  amount: string;
+  annotationHash: string;
+  policyHash: string | null;
+  reviewRef: string | null;
+}
+
+/**
+ * Open (or fetch) the single settlement row for a task.
+ *
+ * Uses `ON CONFLICT (task_id) DO NOTHING`, so a retried or concurrent call
+ * never creates a second row: the existing row is returned instead. The caller
+ * decides, from its `status`, whether to broadcast, recover, or return.
+ */
+export async function beginSettlement(input: BeginSettlementInput): Promise<SettlementRow> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("settlements")
+    .upsert(
+      {
+        task_id: input.taskId,
+        submission_id: input.submissionId,
+        job_id: input.jobId,
+        contributor_id: input.contributorId,
+        amount: input.amount,
+        annotation_hash: input.annotationHash,
+        policy_hash: input.policyHash,
+        review_ref: input.reviewRef,
+      },
+      { onConflict: "task_id", ignoreDuplicates: true },
+    )
+    .select("*");
+
+  if (error) throw HttpError.internal(`Failed to open settlement: ${error.message}`);
+  if (data && data.length > 0) return toSettlement(data[0] as Row);
+
+  const existing = await loadSettlementByTask(input.taskId);
+  if (!existing) throw HttpError.internal("Settlement row missing after insert");
+  return existing;
+}
+
+export async function loadSettlementByTask(taskId: string): Promise<SettlementRow | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("settlements")
+    .select("*")
+    .eq("task_id", taskId)
+    .maybeSingle();
+  if (error) throw HttpError.internal(`Failed to load settlement: ${error.message}`);
+  return data ? toSettlement(data as Row) : null;
+}
+
+/** Record the broadcast transaction hash, as soon as it is known. */
+export async function markSettlementSubmitted(
+  id: string,
+  txHash: string,
+  isMock: boolean,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from("settlements")
+    .update({ status: "submitted", tx_hash: txHash, is_mock: isMock, error: null })
+    .eq("id", id);
+  if (error) throw HttpError.internal(`Failed to record settlement tx: ${error.message}`);
+}
+
+export async function markSettlementConfirmed(
+  id: string,
+  txHash: string | null,
+  isMock: boolean,
+  receiptId: string,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from("settlements")
+    .update({
+      status: "confirmed",
+      tx_hash: txHash,
+      is_mock: isMock,
+      receipt_id: receiptId,
+      error: null,
+    })
+    .eq("id", id);
+  if (error) throw HttpError.internal(`Failed to confirm settlement: ${error.message}`);
+}
+
+export async function markSettlementFailed(id: string, message: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from("settlements")
+    .update({ status: "failed", error: message })
+    .eq("id", id);
+  if (error) throw HttpError.internal(`Failed to mark settlement failed: ${error.message}`);
+}
+
+/** Existing receipt for a submission, if the settlement already produced one. */
+export async function loadReceiptBySubmission(submissionId: string): Promise<Receipt | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("receipts")
+    .select("*")
+    .eq("submission_id", submissionId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw HttpError.internal(`Failed to load receipt: ${error.message}`);
+  return data ? toReceipt(data as Row) : null;
+}
+
+/** Incomplete settlements, newest first (admin reconciliation view). */
+export async function listIncompleteSettlements(): Promise<SettlementRow[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("settlements")
+    .select("*")
+    .in("status", ["pending", "submitted", "failed"])
+    .order("created_at", { ascending: false });
+  if (error) throw HttpError.internal(`Failed to list settlements: ${error.message}`);
+  return (data ?? []).map((row) => toSettlement(row as Row));
+}

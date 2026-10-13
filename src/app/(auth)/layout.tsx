@@ -22,7 +22,7 @@ export default function AuthLayout({
           className="flex flex-wrap items-center justify-between gap-3 py-5"
         >
           <p className="text-caption text-ink-4">
-            © {new Date().getFullYear()} Motive Labs
+            © {new Date().getFullYear()} Zeno
           </p>
           <ul className="flex items-center gap-5">
             <li>

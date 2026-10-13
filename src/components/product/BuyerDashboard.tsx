@@ -8,7 +8,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ArrowRight, Database, Info } from "@/components/ui/icons";
-import { formatDate, formatUsd } from "@/lib/utils/format";
+import { formatDate, formatMon } from "@/lib/utils/format";
 import type { Job } from "@/lib/api/platform";
 
 const byStatus = (jobs: Job[], status: Job["status"]) =>
@@ -98,10 +98,10 @@ export function BuyerDashboard() {
                             {job.modality}
                           </td>
                           <td className="px-5 py-4 text-right align-top tabular-nums text-ink-2">
-                            {formatUsd(Number(job.reward_per_task))}
+                            {formatMon(job.reward_per_task)}
                           </td>
                           <td className="px-5 py-4 text-right align-top tabular-nums text-ink-2">
-                            {formatUsd(Number(job.budget))}
+                            {formatMon(job.budget)}
                           </td>
                           <td className="px-5 py-4 align-top text-ink-3">
                             {job.deadline ? formatDate(job.deadline) : "—"}

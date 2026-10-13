@@ -8,7 +8,7 @@ import { Info } from "@/components/ui/icons";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Start a pilot or ask a question about quality-assured robotics data annotation.",
+    "Start a pilot or ask a question about quality-assured image and video data annotation.",
 };
 
 export default function ContactPage() {

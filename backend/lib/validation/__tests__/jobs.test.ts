@@ -36,6 +36,41 @@ describe("createJobSchema", () => {
     expect(createJobSchema.safeParse({ ...validJob, budget: -5 }).success).toBe(false);
   });
 
+  it("accepts numbers and decimal strings and normalises to strings", () => {
+    const parsed = createJobSchema.parse(validJob);
+    expect(parsed.reward_per_task).toBe("1.5");
+    expect(parsed.budget).toBe("100");
+
+    const asStrings = createJobSchema.parse({
+      ...validJob,
+      reward_per_task: "0.25",
+      budget: "4800.5",
+    });
+    expect(asStrings.reward_per_task).toBe("0.25");
+    expect(asStrings.budget).toBe("4800.5");
+  });
+
+  it("rejects amounts with more than 6 decimal places", () => {
+    expect(
+      createJobSchema.safeParse({ ...validJob, reward_per_task: "0.0000001" }).success,
+    ).toBe(false);
+  });
+
+  it("rejects amounts with too many integer digits for NUMERIC(18,6)", () => {
+    expect(
+      createJobSchema.safeParse({ ...validJob, budget: "1000000000000" }).success,
+    ).toBe(false);
+  });
+
+  it("rejects malformed amounts", () => {
+    for (const bad of ["", "0", "0.0", "-1", "1.", ".5", "01", "1e3", "abc"]) {
+      expect(
+        createJobSchema.safeParse({ ...validJob, reward_per_task: bad }).success,
+        `expected ${JSON.stringify(bad)} to be rejected`,
+      ).toBe(false);
+    }
+  });
+
   it("requires a non-empty label_list", () => {
     expect(createJobSchema.safeParse({ ...validJob, label_list: [] }).success).toBe(false);
   });

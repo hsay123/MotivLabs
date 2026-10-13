@@ -146,7 +146,7 @@ export function ContactForm() {
         name="message"
         label="What are you working on?"
         required
-        hint="The robotics data you have, the labels you need, and any rights or timing constraints."
+        hint="The image and video data you have, the labels you need, and any rights or timing constraints."
       />
 
       <div className="flex items-center gap-4 pt-1">

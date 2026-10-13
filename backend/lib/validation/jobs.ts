@@ -10,18 +10,54 @@ import { z } from "zod";
 export const modalitySchema = z.enum(["image", "video"]);
 export const jobStatusSchema = z.enum(["draft", "published", "paused", "closed"]);
 
+/**
+ * Canonical on-chain amount unit for the testnet MVP: **native testnet MON**.
+ *
+ * Budget and reward feed `parseEther()` at the chain boundary, so they must be
+ * exact decimals — never JS floats. We accept a number *or* string for
+ * backwards compatibility, normalise to a string, and enforce the
+ * `NUMERIC(18,6)` storage shape: at most 12 integer digits and 6 decimals, and
+ * strictly positive.
+ *
+ * There is no USD field on the job: the stored number *is* the MON payout. A
+ * separate business-pricing field and an explicit conversion would be required
+ * before any USD-denominated reward can be used for settlement.
+ */
+const MON_AMOUNT_RE = /^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/;
+const ZERO_AMOUNT_RE = /^0(?:\.0+)?$/;
+
+export function normaliseMonAmount(value: unknown): string | null {
+  const raw = typeof value === "number" ? String(value) : value;
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!MON_AMOUNT_RE.test(trimmed)) return null;
+  if (ZERO_AMOUNT_RE.test(trimmed)) return null;
+  return trimmed;
+}
+
+export const monAmountSchema = z
+  .union([z.string(), z.number()], {
+    invalid_type_error: "amount must be a decimal string or number",
+  })
+  .superRefine((value, ctx) => {
+    if (normaliseMonAmount(value) === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "must be a positive amount in testnet MON with at most 6 decimal places",
+      });
+    }
+  })
+  .transform((value) => normaliseMonAmount(value) as string);
+
 /** POST /api/jobs */
 export const createJobSchema = z.object({
   project_id: z.string().uuid("project_id must be a UUID"),
   title: z.string().trim().min(1, "title is required").max(200),
   description: z.string().max(5000).optional(),
   modality: modalitySchema,
-  reward_per_task: z
-    .number({ invalid_type_error: "reward_per_task must be a number" })
-    .positive("reward_per_task must be positive"),
-  budget: z
-    .number({ invalid_type_error: "budget must be a number" })
-    .positive("budget must be positive"),
+  reward_per_task: monAmountSchema,
+  budget: monAmountSchema,
   deadline: z
     .string()
     .datetime({ offset: true, message: "deadline must be an ISO 8601 timestamp" })

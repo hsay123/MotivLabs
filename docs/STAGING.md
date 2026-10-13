@@ -1,4 +1,4 @@
-# Staging deployment — PhysicalData / MotivLabs
+# Staging deployment — Zeno
 
 Status: **app layer deployed and verified on Vercel; real settlement pending a
 funded Monad-testnet key.** Frontend and backend are independent Vercel
@@ -12,7 +12,7 @@ projects. No secret values are written here.
 | **Backend** | `backend/`, API-only Next.js app | Vercel — `zeno-api` |
 | **Database + Storage** | Supabase project `sfebambrdcfqrdmetflw` | managed (shared with dev) |
 | **Auth** | Privy app | managed |
-| **Settlement** | `contracts/JobEscrow.sol` | Monad testnet (chain 10143), **DEPLOYED** at `0x4A8E371E89cF9989682Ed0bD5cD1cCa457281fE8` |
+| **Settlement** | `contracts/JobEscrow.sol` | Monad testnet (chain 10143). **Old contract live at `0x4A8E371E89cF9989682Ed0bD5cD1cCa457281fE8`; the corrected JobEscrow is NOT deployed yet.** See §4.2 |
 
 URLs:
 
@@ -73,7 +73,8 @@ Environment variables (production; secrets are Vercel-encrypted):
 | `MONAD_RPC_URL` | `https://testnet-rpc.monad.xyz` |
 | `LEASE_MINUTES` / thresholds | defaults |
 | `SETTLEMENT_PRIVATE_KEY` | **secret** (set; inert until the escrow address is set) |
-| `JOB_ESCROW_ADDRESS` | **not set yet** — set after the contract deploy |
+| `JOB_ESCROW_ADDRESS` | **point at the OLD contract only until the corrected JobEscrow is deployed** (§4.2). Leave unset to keep settlement honestly mock |
+| `OWNER_ADDRESS` / `RELAYER_ADDRESS` (deploy inputs) | public addresses only; the keys live in `contracts/.env` (git-ignored), never in Vercel |
 
 Redeploy: `cd backend && vercel link --project zeno-api && vercel deploy --prod`.
 
@@ -138,29 +139,39 @@ Add **`https://zeno-web-app.vercel.app`** to the Privy app's allowed origins
 (and redirect URLs if email/OTP is on). Without it, SIWE/login from the staging
 origin fails. This is a dashboard action.
 
-### 4.2 Fund the deployer, then deploy the contract
+### 4.2 Rotate keys, then deploy the corrected JobEscrow
 
-Deployer / relayer wallet (key only in git-ignored `contracts/.env` and
-`backend/.env.local`):
+**The old key is treated as compromised.** A settlement private key was exposed
+in a screenshot, and the previously deployed contract used one address as both
+owner and relayer (`0x8084a4eD8849B7B12E57f9e443ECe05E89838767`). Do not reuse
+or re-fund it.
 
+Required human action — generate **two fresh** testnet-only keys and share only
+their public addresses:
+
+1. **Owner key** — contract owner, retains funds authority and `closeJob`.
+2. **Relayer key** — backend settlement signer (`SETTLEMENT_PRIVATE_KEY`).
+
+Fund the **owner** address from the faucet (`https://faucet.monad.xyz`), then
+deploy with the two public addresses (the corrected contract separates the
+identities and derives the funder from `msg.sender`):
+
+```bash
+cd contracts
+export OWNER_ADDRESS=0x…      # fresh owner public address
+export RELAYER_ADDRESS=0x…    # fresh relayer public address (≠ owner)
+# contracts/.env holds the owner key as DEPLOYER_PRIVATE_KEY (git-ignored)
+forge script script/Deploy.s.sol:DeployJobEscrow --rpc-url monad_testnet --broadcast
 ```
-0x8084a4eD8849B7B12E57f9e443ECe05E89838767   (deployer/relayer, ~9.9 MON remaining)
-```
 
-1. Fund it at **https://faucet.monad.xyz**.
-2. Deploy:
+The corrected contract is **not deployed yet**; until it is, leave
+`JOB_ESCROW_ADDRESS` unset so receipts stay `is_mock = true`.
 
-   ```bash
-   cd contracts
-   export DEPLOYER_PRIVATE_KEY=$(grep '^DEPLOYER_PRIVATE_KEY=' .env | cut -d= -f2-)
-   forge script script/Deploy.s.sol:DeployJobEscrow --rpc-url monad_testnet --broadcast
-   ```
-
-3. Set `JOB_ESCROW_ADDRESS` on the `zeno-api` Vercel project and
-   redeploy. Real settlement turns on only when `JOB_ESCROW_ADDRESS` +
-   `MONAD_RPC_URL` + `SETTLEMENT_PRIVATE_KEY` are all present; otherwise
-   receipts stay `is_mock = true`.
-4. Fund the job being shown:
+3. Set the new `JOB_ESCROW_ADDRESS` and the fresh `SETTLEMENT_PRIVATE_KEY` on the
+   `zeno-api` Vercel project and redeploy. Real settlement turns on only when
+   `JOB_ESCROW_ADDRESS` + `MONAD_RPC_URL` + `SETTLEMENT_PRIVATE_KEY` are all
+   present; otherwise receipts stay `is_mock = true`.
+4. Fund the job being shown (the broadcasting key is recorded as the funder):
 
    ```bash
    export JOB_ESCROW_ADDRESS=0x…
@@ -194,19 +205,33 @@ npx tsx scripts/set-role.ts you+admin@example.com admin
 ## 7. Known limitations
 
 - Shared Supabase project: staging and dev share data. A separate project needs
-  migrations 001–006 + the `media` bucket (`backend/supabase/all_migrations.sql`).
+  migrations 001–009 + the `media` bucket (`backend/supabase/all_migrations.sql`).
+  (008 onboarding RPC and 009 settlements ledger are applied here.)
 - Vercel Authentication was disabled on both production deployments. `maxDuration = 30`
   is set on the settlement route so the receipt wait is not cut off at the 10 s default.
-- Settlement is not transactional with the database: if the DB write fails after
-  a successful on-chain payout, the contract's `AlreadySettled` guard prevents a
-  silent re-pay, and the task needs manual reconciliation. A production build
-  should write a pending receipt first.
+- Settlement is crash-safe now: a `settlements` row (unique per task) is written
+  **before** the chain call, the broadcast hash is stored as soon as it is known,
+  and the receipt/task flip happen only after verification. A lost response is
+  recovered by retrying `POST /api/settlement/accept` or by
+  `POST /api/settlement/reconcile` (re-verifies on-chain; never re-pays). See
+  `backend/supabase/migrations/009_settlements_ledger.sql` and
+  `backend/lib/settlement/service.ts`.
+- Real settlement is still off: the corrected `JobEscrow` is not deployed and no
+  fresh owner/relayer keys are funded yet (§4.2). Receipts stay `is_mock = true`.
+- CVAT is **not integrated**. The supported editor is the built-in workspace
+  (image boxes; video timeline with seek, Set start/Set end and debounced
+  autosave). The adapter design, mapping and the host/credentials a human must
+  provide are in [`docs/CVAT-INTEGRATION.md`](CVAT-INTEGRATION.md). No surface
+  claims CVAT support.
 
-## 8. Current commit hashes
+## 8. Commit history
 
-| Component | Commit |
-| --- | --- |
-| Contract + tests | `f324f54ea` |
-| Settlement integration | `21a1b1871` |
-| Deploy configs + runbook | `194a64e62` |
-| Vercel deploy refinements | `35c5617` |
+This document tracks the running branch, so hashes go stale; read the live
+history instead:
+
+```bash
+git log --oneline origin/main..HEAD    # work on fix/product-alignment-critical
+```
+
+The settlement key/indexing work referenced above lives in
+`backend/lib/settlement/` and `contracts/src/JobEscrow.sol`.

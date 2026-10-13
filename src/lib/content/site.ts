@@ -138,7 +138,7 @@ export const primaryNav: NavGroup[] = [
             description: "The end-to-end data lifecycle.",
           },
           {
-            label: "About Motive Labs",
+            label: "About Zeno",
             href: "/about",
             description: "Why we build quality-assured data operations.",
           },
@@ -222,6 +222,6 @@ export const legalLinks = [
 ] as const;
 
 export const brand = {
-  name: "Motive Labs",
+  name: "Zeno",
   tagline: "The data infrastructure for intelligent machines.",
 } as const;

@@ -1,5 +1,5 @@
 /**
- * PhysicalData platform client (real backend contract).
+ * Zeno platform client (real backend contract).
  * -------------------------------------------------------------------
  * One typed HTTP client for the Next.js API in `backend/`. Every response is
  * parsed with a zod schema at this boundary, so screens never trust unvalidated
@@ -101,6 +101,8 @@ export const onboardingCompleteRequestSchema = z.object({
 export const onboardingCompleteResponseSchema = z.object({
   onboarding_completed: z.boolean(),
   redirect: z.string(),
+  account_type: z.enum(["buyer", "contributor"]).nullable().optional(),
+  organization_id: z.string().nullable().optional(),
 });
 
 export type OnboardingCompleteRequest = z.infer<typeof onboardingCompleteRequestSchema>;

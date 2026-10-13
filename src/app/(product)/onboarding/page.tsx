@@ -6,7 +6,7 @@ import { Section } from "@/components/ui/Section";
 
 export const metadata: Metadata = {
   title: "Onboarding",
-  description: "Choose a Motive Labs role and review its setup.",
+  description: "Choose a Zeno role and review its setup.",
 };
 
 export default function OnboardingPage() {

@@ -22,7 +22,7 @@ export function PublicReceipt({ receiptId }: { receiptId: string }) {
     <Section tone="canvas" spacing="default" contained={false}>
       <Container size="prose">
         <p className="font-mono text-caption uppercase tracking-[0.14em] text-ink-4">
-          Motive Labs
+          Zeno
         </p>
         <h1 className="mt-2 font-display text-display text-ink">Payout receipt</h1>
         <p className="mt-3 text-body text-ink-3">

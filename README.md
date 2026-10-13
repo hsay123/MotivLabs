@@ -1,6 +1,9 @@
-# MotivLabs (PhysicalData)
+# Zeno
 
-A two-app monorepo for physical-world (robotics/media) annotation:
+A two-app monorepo for physical-world annotation. The MVP supports **images**
+(bounding boxes, `image-boxes-v1`) and **video** (timestamped action segments,
+`action-segments-v1`); audio, text and 3D are out of scope and no surface claims
+them.
 
 - **`/` (root)** — the Next.js product: marketing pages, the Privy login flow, and the
   role workspaces (`buyer`, `contributor`, `reviewer`, `admin`). Product screens fetch
@@ -61,3 +64,12 @@ npx playwright test e2e/s1-auth-roles.spec.ts e2e/s2-buyer-job.spec.ts \
   `service_role` is used server-side only. See `backend/supabase/migrations/006_security_hardening.sql`.
 - Settlement is **mock** until the escrow contract is funded and verified; the UI
   labels it as such. See [`docs/BLOCKED.md`](docs/BLOCKED.md).
+
+## Documentation
+
+- [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — day-to-day operations.
+- [`docs/STAGING.md`](docs/STAGING.md) — staging topology, deploy steps, key rotation.
+- [`docs/BLOCKED.md`](docs/BLOCKED.md) — external blockers (key custody, Privy origins).
+- [`docs/AUDIT-2026-10.md`](docs/AUDIT-2026-10.md) — product-alignment audit.
+- [`docs/CVAT-INTEGRATION.md`](docs/CVAT-INTEGRATION.md) — CVAT decision and plan
+  (not integrated; the native workspace is the supported editor).

@@ -76,21 +76,21 @@ export const media = {
     "capability-overview.webp",
     16 / 10,
     "Composed still of the annotation workspace with a clip loaded, timeline populated and the label schema visible.",
-    "The Motive Labs annotation workspace with a robotics clip loaded and a populated timeline.",
+    "The Zeno annotation workspace with a video clip loaded and a populated timeline.",
   ),
 
   /* ---- Landing: capability sections --------------------------------- */
   annotationWorkspace: image(
     "annotation-workspace.webp",
     4 / 3,
-    "Robotics annotation interface — footage canvas, timecode scrubber and timestamped action labels.",
-    "Robotics annotation interface showing footage, a timecode scrubber and timestamped action labels.",
+    "Annotation interface — media canvas, timecode scrubber and timestamped action labels.",
+    "Annotation interface showing media, a timecode scrubber and timestamped action labels.",
   ),
   reviewWorkspace: image(
     "review-workspace.webp",
     4 / 3,
-    "Annotation review interface — source clip beside the submitted labels, a rubric panel and review decisions.",
-    "Annotation review interface comparing a source clip against submitted labels with a rubric panel.",
+    "Annotation review interface — source media beside the submitted labels, a rubric panel and review decisions.",
+    "Annotation review interface comparing a source media against submitted labels with a rubric panel.",
   ),
   datasetExport: image(
     "dataset-export.webp",
@@ -103,8 +103,8 @@ export const media = {
   productShowcase: image(
     "product-overview.webp",
     16 / 10,
-    "A real screenshot of the Motive Labs application — the buyer job dashboard.",
-    "The Motive Labs buyer dashboard showing active jobs, task states and quality signals.",
+    "A real screenshot of the Zeno application — the buyer job dashboard.",
+    "The Zeno buyer dashboard showing active jobs, task states and quality signals.",
   ),
 
   /* ---- Landing: use cases ------------------------------------------- */
@@ -147,7 +147,7 @@ export const media = {
     "task-segment-poster.webp",
     16 / 9,
     "The single task segment a contributor is assigned to annotate.",
-    "A short robotics clip queued for annotation.",
+    "A short video clip queued for annotation.",
   ),
 } satisfies Record<string, MediaAsset>;
 

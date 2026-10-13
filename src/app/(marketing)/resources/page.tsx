@@ -11,7 +11,7 @@ import { FileText, Info } from "@/components/ui/icons";
 export const metadata: Metadata = {
   title: "Resources",
   description:
-    "Documentation, schema reference and the changelog for the Motive Labs pilot.",
+    "Documentation, schema reference and the changelog for the Zeno pilot.",
 };
 
 const changelog = [

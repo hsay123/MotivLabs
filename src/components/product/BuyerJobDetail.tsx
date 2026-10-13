@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { FileText, Download } from "@/components/ui/icons";
-import { formatCount, formatDate, formatUsd } from "@/lib/utils/format";
+import { formatCount, formatDate, formatMon } from "@/lib/utils/format";
 import { jobSchema, platformPaths, type Job, type Task } from "@/lib/api/platform";
 
 const countBy = (tasks: Task[], statuses: Task["status"][]) =>
@@ -109,7 +109,7 @@ export function BuyerJobDetail({ jobId }: { jobId: string }) {
                   <StatusChip status={job.status} />
                   <span className="capitalize text-ink-3">{job.modality}</span>
                   <span className="text-ink-3">
-                    Reward / task {formatUsd(Number(job.reward_per_task))}
+                    Reward / task {formatMon(job.reward_per_task)}
                   </span>
                   <span className="text-ink-3">
                     {job.deadline
@@ -132,15 +132,15 @@ export function BuyerJobDetail({ jobId }: { jobId: string }) {
             <section className="rounded-xl border border-line bg-surface p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="font-display text-title text-ink">Job budget</h2>
-                <Badge tone="neutral">Budget: {formatUsd(Number(job.budget))}</Badge>
+                <Badge tone="neutral">Budget: {formatMon(job.budget)}</Badge>
               </div>
-              <dl className="mt-4 grid gap-4 sm:grid-cols-3">
+              <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <dt className="text-caption uppercase tracking-[0.06em] text-ink-4">
                     Budget
                   </dt>
                   <dd className="mt-1 font-display text-[1.25rem] text-ink tnum">
-                    {formatUsd(Number(job.budget))}
+                    {formatMon(job.budget)}
                   </dd>
                 </div>
                 <div>
@@ -148,7 +148,22 @@ export function BuyerJobDetail({ jobId }: { jobId: string }) {
                     Reward / task
                   </dt>
                   <dd className="mt-1 font-display text-[1.25rem] text-ink tnum">
-                    {formatUsd(Number(job.reward_per_task))}
+                    {formatMon(job.reward_per_task)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-caption uppercase tracking-[0.06em] text-ink-4">
+                    Escrow
+                  </dt>
+                  <dd className="mt-1 text-body-sm text-ink-2">
+                    {job.chain_job_id ? (
+                      <>
+                        Funded on Monad testnet —{" "}
+                        <span className="font-mono text-[12px]">{job.chain_job_id}</span>
+                      </>
+                    ) : (
+                      "No on-chain funding reference recorded for this job yet."
+                    )}
                   </dd>
                 </div>
                 <div>
@@ -161,10 +176,12 @@ export function BuyerJobDetail({ jobId }: { jobId: string }) {
                 </div>
               </dl>
               <InfoNote>
-                Settlement is processed from real review decisions. This API
+                Escrow funding is recorded on-chain as a job reference; when none
+                is recorded, the job is shown as unfunded rather than implied to
+                be funded. Settlement runs from real review decisions. This API
                 build does not expose a per-job settled amount, so none is shown
-                here rather than fabricated. Any mock settlement is labelled as
-                such wherever a payment is displayed.
+                here rather than fabricated, and every payment is labelled mock
+                or real wherever a receipt displays it.
               </InfoNote>
             </section>
 

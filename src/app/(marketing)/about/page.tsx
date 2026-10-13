@@ -10,7 +10,7 @@ import { Info } from "@/components/ui/icons";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "Motive Labs builds quality-assured data operations for physical AI — managed delivery, inspectable quality and traceable provenance.",
+    "Zeno builds quality-assured data operations for machine learning — managed delivery, inspectable quality and traceable provenance.",
 };
 
 export default function AboutPage() {
@@ -89,7 +89,7 @@ export default function AboutPage() {
                 />
                 <p className="text-body-sm text-ink-3">
                   We are looking for design partners with rights-cleared
-                  robotics video and a specific labelling need — not for logos.
+                  images and video and a specific labelling need — not for logos.
                 </p>
               </div>
             </div>
@@ -120,7 +120,7 @@ export default function AboutPage() {
                 Build with us.
               </h2>
               <p className="mt-2 measure text-body-sm text-ink-3">
-                If you have robotics data and a labelling bottleneck, we would
+                If you have image and video data and a labelling bottleneck, we would
                 like to hear the specifics.
               </p>
             </div>
