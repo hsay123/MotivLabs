@@ -32,6 +32,19 @@ const steps = [
 
 type Modality = "image" | "video";
 
+/**
+ * Amount unit for the testnet MVP is **native testnet MON** — the same number
+ * is used for the buyer's budget/reward and the on-chain payout. We validate
+ * the exact decimal shape (≤ 12 integer digits, ≤ 6 decimals, positive) instead
+ * of coercing through `Number()`, which loses precision and would silently
+ * disagree with the wei value settled on-chain.
+ */
+const MON_AMOUNT_RE = /^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/;
+function isValidMonAmount(value: string): boolean {
+  const trimmed = value.trim();
+  return MON_AMOUNT_RE.test(trimmed) && Number(trimmed) > 0;
+}
+
 type Values = {
   projectId: string;
   projectName: string;
@@ -122,7 +135,7 @@ export function NewJobWizard() {
     }
     if (step === 1) return files.length > 0;
     if (step === 2) return labelList.length > 0;
-    if (step === 3) return Number(values.budget) > 0 && Number(values.reward) > 0;
+    if (step === 3) return isValidMonAmount(values.budget) && isValidMonAmount(values.reward);
     return true;
   };
 
@@ -174,8 +187,8 @@ export function NewJobWizard() {
           title: values.title.trim(),
           description: values.description.trim() || undefined,
           modality: values.modality,
-          reward_per_task: Number(values.reward),
-          budget: Number(values.budget),
+          reward_per_task: values.reward.trim(),
+          budget: values.budget.trim(),
           deadline: values.deadline
             ? new Date(`${values.deadline}T23:59:59Z`).toISOString()
             : undefined,
@@ -465,8 +478,8 @@ export function NewJobWizard() {
                 <TextField
                   id="budget"
                   type="number"
-                  inputMode="numeric"
-                  label="Budget (USD)"
+                  inputMode="decimal"
+                  label="Budget (testnet MON)"
                   required
                   value={values.budget}
                   onChange={set("budget")}
@@ -475,8 +488,8 @@ export function NewJobWizard() {
                 <TextField
                   id="reward"
                   type="number"
-                  inputMode="numeric"
-                  label="Reward per task (USD)"
+                  inputMode="decimal"
+                  label="Reward per task (testnet MON)"
                   required
                   value={values.reward}
                   onChange={set("reward")}
@@ -490,11 +503,15 @@ export function NewJobWizard() {
                 value={values.deadline}
                 onChange={set("deadline")}
               />
-              <p className="text-caption text-ink-3">
-                The budget and per-task reward are recorded on the job. Settlement
-                against accepted work is handled by the platform’s review and
-                settlement flow.
-              </p>
+              <div className="flex items-start gap-2.5 rounded-lg border border-info-line bg-info-bg p-4">
+                <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-info-fg" />
+                <p className="text-caption text-info-fg">
+                  Budget and reward are denominated in <strong>testnet MON</strong>, the
+                  same unit settled on Monad testnet. Testnet MON is a test currency
+                  with no real-world value. Payouts are only made for work that passes
+                  review.
+                </p>
+              </div>
             </div>
           ) : null}
 
@@ -508,8 +525,8 @@ export function NewJobWizard() {
                   ["Modality", values.modality],
                   ["Schema", modalitySchemaFor(values.modality).name],
                   ["Files", `${files.length}`],
-                  ["Budget", `$${values.budget}`],
-                  ["Reward / task", `$${values.reward}`],
+                  ["Budget", `${values.budget} MON`],
+                  ["Reward / task", `${values.reward} MON`],
                   ["Deadline", values.deadline || "—"],
                   ["Labels", labelList.join(", ")],
                 ].map(([label, value]) => (

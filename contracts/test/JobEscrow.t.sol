@@ -5,17 +5,20 @@ import {Test} from "forge-std/Test.sol";
 import {JobEscrow} from "../src/JobEscrow.sol";
 
 /**
- * @dev Money-rule tests for {JobEscrow}, mirrored by the backend service tests.
- *      The test contract is the deployer, so it is owner and an initial relayer;
- *      `relayer` is added explicitly to model the backend signer.
+ * @dev Money-rule and access-control tests for {JobEscrow}.
+ *
+ *      The test contract is the deployer, so it is the `owner` but — by design —
+ *      NOT a relayer. A distinct `relayer` address signs settlements, mirroring
+ *      the backend signer being separate from the admin/owner.
  */
 contract JobEscrowTest is Test {
     JobEscrow internal escrow;
 
-    address internal relayer = address(0xA11CE);
-    address internal payer = address(0xB0B);
+    address internal owner = address(this);
+    address internal relayer = address(0xBEEF);
+    address internal buyer = address(0xB0B);
     address internal contributor = address(0xC0FFEE);
-    address internal stranger = address(0xDEAD);
+    address internal stranger = address(0xBAD);
 
     bytes32 internal constant JOB_ID = keccak256("job-1");
     bytes32 internal constant TASK_ID = keccak256("task-1");
@@ -23,6 +26,7 @@ contract JobEscrowTest is Test {
     bytes32 internal constant ANNOTATION_HASH = keccak256("annotation-1");
 
     event JobFunded(bytes32 indexed jobId, address indexed funder, uint256 amount);
+    event JobClosed(bytes32 indexed jobId, uint256 unspent);
     event TaskSettled(
         bytes32 indexed jobId,
         bytes32 indexed taskId,
@@ -35,9 +39,10 @@ contract JobEscrowTest is Test {
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     function setUp() public {
-        escrow = new JobEscrow();
-        escrow.setRelayer(relayer, true);
-        assertEq(escrow.owner(), address(this));
+        escrow = new JobEscrow(owner, relayer);
+        assertEq(escrow.owner(), owner);
+        assertTrue(escrow.relayers(relayer));
+        assertFalse(escrow.relayers(owner)); // owner is NOT a relayer by default
     }
 
     // ---------------------------------------------------------------
@@ -45,29 +50,42 @@ contract JobEscrowTest is Test {
     // ---------------------------------------------------------------
 
     function _fund(uint256 amount) internal {
-        vm.deal(address(this), amount);
-        escrow.fundJob{value: amount}(JOB_ID, payer);
+        vm.deal(buyer, amount);
+        vm.prank(buyer);
+        escrow.fundJob{value: amount}(JOB_ID);
     }
 
     function _job()
         internal
         view
-        returns (address buyer, uint256 budget, uint256 paid, bool exists)
+        returns (address jobBuyer, uint256 budget, uint256 paid, bool open, bool exists)
     {
         return escrow.jobs(JOB_ID);
     }
 
     // ---------------------------------------------------------------
-    // Deployment / roles
+    // Construction / roles
     // ---------------------------------------------------------------
 
-    function test_DeployerIsOwnerAndInitialRelayer() public {
-        JobEscrow fresh = new JobEscrow();
-        assertEq(fresh.owner(), address(this));
-        assertTrue(fresh.relayers(address(this)));
+    function test_Constructor_SeparatesOwnerAndRelayer() public view {
+        assertEq(escrow.owner(), owner);
+        assertTrue(escrow.relayers(relayer));
+        assertFalse(escrow.relayers(owner));
     }
 
-    function test_SetRelayer_OnlyOwner() public {
+    function test_Constructor_RejectsIdenticalOwnerAndRelayer() public {
+        vm.expectRevert(JobEscrow.IdenticalOwnerAndRelayer.selector);
+        new JobEscrow(stranger, stranger);
+    }
+
+    function test_Constructor_RejectsZeroAddresses() public {
+        vm.expectRevert(JobEscrow.ZeroAddress.selector);
+        new JobEscrow(address(0), relayer);
+        vm.expectRevert(JobEscrow.ZeroAddress.selector);
+        new JobEscrow(owner, address(0));
+    }
+
+    function test_SetRelayer_OnlyOwnerAndEmits() public {
         vm.prank(stranger);
         vm.expectRevert(JobEscrow.NotOwner.selector);
         escrow.setRelayer(stranger, true);
@@ -81,7 +99,7 @@ contract JobEscrowTest is Test {
         assertFalse(escrow.relayers(stranger));
     }
 
-    function test_SetRelayer_RevertsOnZeroAddress() public {
+    function test_SetRelayer_RejectsZeroAddress() public {
         vm.expectRevert(JobEscrow.ZeroAddress.selector);
         escrow.setRelayer(address(0), true);
     }
@@ -92,7 +110,7 @@ contract JobEscrowTest is Test {
         escrow.transferOwnership(stranger);
 
         vm.expectEmit(true, true, false, true);
-        emit OwnershipTransferred(address(this), stranger);
+        emit OwnershipTransferred(owner, stranger);
         escrow.transferOwnership(stranger);
         assertEq(escrow.owner(), stranger);
     }
@@ -101,33 +119,83 @@ contract JobEscrowTest is Test {
     // Funding
     // ---------------------------------------------------------------
 
-    function test_FundJob_RecordsBudgetAndEmits() public {
-        vm.deal(address(this), 1 ether);
+    function test_FundJob_AttributesCallerAsFunder() public {
+        vm.deal(buyer, 1 ether);
         vm.expectEmit(true, true, false, true);
-        emit JobFunded(JOB_ID, payer, 1 ether);
-        escrow.fundJob{value: 1 ether}(JOB_ID, payer);
+        emit JobFunded(JOB_ID, buyer, 1 ether);
+        vm.prank(buyer);
+        escrow.fundJob{value: 1 ether}(JOB_ID);
 
-        (address buyer, uint256 budget, uint256 paid, bool exists) = _job();
-        assertEq(buyer, payer);
-        assertEq(uint256(budget), 1 ether);
-        assertEq(uint256(paid), 0);
+        (address jobBuyer, uint256 budget, uint256 paid, bool open, bool exists) = _job();
+        assertEq(jobBuyer, buyer);
+        assertEq(budget, 1 ether);
+        assertEq(paid, 0);
+        assertTrue(open);
         assertTrue(exists);
     }
 
-    function test_FundJob_AccumulatesAndKeepsFirstBuyer() public {
+    function test_FundJob_BuyerCanTopUp() public {
         _fund(0.4 ether);
-        vm.deal(address(this), 0.6 ether);
-        escrow.fundJob{value: 0.6 ether}(JOB_ID, stranger);
+        vm.deal(buyer, 0.6 ether);
+        vm.prank(buyer);
+        escrow.fundJob{value: 0.6 ether}(JOB_ID);
 
-        (address buyer, uint256 budget,,) = _job();
-        assertEq(buyer, payer, "first funder wins");
-        assertEq(uint256(budget), 1 ether);
+        (, uint256 budget,,,) = _job();
+        assertEq(budget, 1 ether);
         assertEq(address(escrow).balance, 1 ether);
     }
 
-    function test_FundJob_RevertsOnZeroValue() public {
+    function test_FundJob_RejectsNonBuyerTopUp() public {
+        _fund(0.4 ether);
+        vm.deal(stranger, 1 ether);
+        vm.prank(stranger);
+        vm.expectRevert(JobEscrow.NotBuyer.selector);
+        escrow.fundJob{value: 0.4 ether}(JOB_ID);
+    }
+
+    function test_FundJob_RejectsZeroValue() public {
+        vm.prank(buyer);
         vm.expectRevert(JobEscrow.ZeroAmount.selector);
-        escrow.fundJob{value: 0}(JOB_ID, payer);
+        escrow.fundJob{value: 0}(JOB_ID);
+    }
+
+    function test_FundJob_RejectsWhenClosed() public {
+        _fund(1 ether);
+        escrow.closeJob(JOB_ID);
+        vm.deal(buyer, 1 ether);
+        vm.prank(buyer);
+        vm.expectRevert(JobEscrow.JobClosedError.selector);
+        escrow.fundJob{value: 0.5 ether}(JOB_ID);
+    }
+
+    // ---------------------------------------------------------------
+    // Closure
+    // ---------------------------------------------------------------
+
+    function test_CloseJob_OnlyOwnerAndEmits() public {
+        _fund(1 ether);
+        vm.prank(buyer);
+        vm.expectRevert(JobEscrow.NotOwner.selector);
+        escrow.closeJob(JOB_ID);
+
+        vm.expectEmit(true, false, false, true);
+        emit JobClosed(JOB_ID, 1 ether);
+        escrow.closeJob(JOB_ID);
+
+        (,,, bool open,) = _job();
+        assertFalse(open);
+    }
+
+    function test_CloseJob_RevertsIfMissing() public {
+        vm.expectRevert(JobEscrow.JobNotFound.selector);
+        escrow.closeJob(JOB_ID);
+    }
+
+    function test_CloseJob_RevertsIfAlreadyClosed() public {
+        _fund(1 ether);
+        escrow.closeJob(JOB_ID);
+        vm.expectRevert(JobEscrow.JobClosedError.selector);
+        escrow.closeJob(JOB_ID);
     }
 
     // ---------------------------------------------------------------
@@ -145,9 +213,9 @@ contract JobEscrowTest is Test {
         escrow.settle(JOB_ID, TASK_ID, payable(contributor), 0.25 ether, ANNOTATION_HASH);
 
         assertEq(contributor.balance, before + 0.25 ether);
-        (, uint256 budget, uint256 paid,) = _job();
-        assertEq(uint256(budget), 1 ether);
-        assertEq(uint256(paid), 0.25 ether);
+        (, uint256 budget, uint256 paid,,) = _job();
+        assertEq(budget, 1 ether);
+        assertEq(paid, 0.25 ether);
         assertTrue(escrow.settled(escrow.taskKey(JOB_ID, TASK_ID)));
         assertEq(address(escrow).balance, 0.75 ether);
     }
@@ -159,13 +227,27 @@ contract JobEscrowTest is Test {
         escrow.settle(JOB_ID, TASK_ID_2, payable(contributor), 0.3 ether, ANNOTATION_HASH);
         vm.stopPrank();
 
-        (,, uint256 paid,) = _job();
-        assertEq(uint256(paid), 0.6 ether);
+        (,, uint256 paid,,) = _job();
+        assertEq(paid, 0.6 ether);
+    }
+
+    function test_Settle_AllowedAfterClose() public {
+        _fund(1 ether);
+        escrow.closeJob(JOB_ID);
+        vm.prank(relayer);
+        escrow.settle(JOB_ID, TASK_ID, payable(contributor), 0.25 ether, ANNOTATION_HASH);
+        assertEq(contributor.balance, 0.25 ether);
     }
 
     function test_Settle_RevertsForNonRelayer() public {
         _fund(1 ether);
         vm.prank(stranger);
+        vm.expectRevert(JobEscrow.NotRelayer.selector);
+        escrow.settle(JOB_ID, TASK_ID, payable(contributor), 0.25 ether, ANNOTATION_HASH);
+    }
+
+    function test_Settle_RevertsForOwnerWhoIsNotRelayer() public {
+        _fund(1 ether);
         vm.expectRevert(JobEscrow.NotRelayer.selector);
         escrow.settle(JOB_ID, TASK_ID, payable(contributor), 0.25 ether, ANNOTATION_HASH);
     }
@@ -186,25 +268,23 @@ contract JobEscrowTest is Test {
     }
 
     function test_Settle_DifferentJobsAllowSameTaskId() public {
-        // Guards against keying `settled` by taskId alone.
         _fund(1 ether);
-        bytes32 otherJob = keccak256("job-2");
-        vm.deal(address(this), 1 ether);
-        escrow.fundJob{value: 1 ether}(otherJob, payer);
+        vm.deal(stranger, 1 ether);
+        vm.prank(stranger);
+        escrow.fundJob{value: 1 ether}(keccak256("job-2"));
 
         vm.startPrank(relayer);
-        escrow.settle(JOB_ID, TASK_ID, payable(contributor), 0.1 ether, ANNOTATION_HASH);
-        escrow.settle(otherJob, TASK_ID, payable(contributor), 0.1 ether, ANNOTATION_HASH);
+        escrow.settle(JOB_ID, TASK_ID, payable(contributor), 0.3 ether, ANNOTATION_HASH);
+        escrow.settle(keccak256("job-2"), TASK_ID, payable(contributor), 0.3 ether, ANNOTATION_HASH);
         vm.stopPrank();
-
-        assertEq(contributor.balance, 0.2 ether);
+        assertEq(contributor.balance, 0.6 ether);
     }
 
-    function test_Settle_RevertsOverBudget() public {
-        _fund(0.2 ether);
+    function test_Settle_RevertsOnOverBudget() public {
+        _fund(1 ether);
         vm.prank(relayer);
         vm.expectRevert(JobEscrow.BudgetExceeded.selector);
-        escrow.settle(JOB_ID, TASK_ID, payable(contributor), 0.21 ether, ANNOTATION_HASH);
+        escrow.settle(JOB_ID, TASK_ID, payable(contributor), 1.1 ether, ANNOTATION_HASH);
     }
 
     function test_Settle_RevertsOnZeroAmount() public {
@@ -223,20 +303,51 @@ contract JobEscrowTest is Test {
 
     function test_Settle_RevertsIfTransferFails() public {
         _fund(1 ether);
-        RejectingPayee rejecter = new RejectingPayee();
+        RejectingPayee rejecting = new RejectingPayee();
         vm.prank(relayer);
         vm.expectRevert(JobEscrow.TransferFailed.selector);
-        escrow.settle(JOB_ID, TASK_ID, payable(address(rejecter)), 0.1 ether, ANNOTATION_HASH);
+        escrow.settle(JOB_ID, TASK_ID, payable(address(rejecting)), 0.1 ether, ANNOTATION_HASH);
+    }
+
+    /// @dev A relayer that tries to re-enter `settle` from its `receive` hook is
+    ///      blocked by the reentrancy guard, so no second payout can occur.
+    function test_Settle_ReentrancyBlocked() public {
+        _fund(2 ether);
+        ReentrantRelayer attacker = new ReentrantRelayer(escrow, JOB_ID, TASK_ID_2);
+        escrow.setRelayer(address(attacker), true);
+
+        vm.prank(relayer);
+        escrow.settle(JOB_ID, TASK_ID, payable(address(attacker)), 0.5 ether, ANNOTATION_HASH);
+
+        assertTrue(attacker.attempted());
+        assertTrue(attacker.blocked());
+        (,, uint256 paid,,) = _job();
+        assertEq(paid, 0.5 ether); // only the outer payout happened
     }
 
     // ---------------------------------------------------------------
     // Withdrawal
     // ---------------------------------------------------------------
 
-    function test_Withdraw_ReturnsUnspent() public {
+    function test_Withdraw_RejectsOpenJob() public {
+        _fund(1 ether);
+        vm.expectRevert(JobEscrow.JobNotClosed.selector);
+        escrow.withdraw(JOB_ID, payable(stranger));
+    }
+
+    function test_Withdraw_OnlyOwner() public {
+        _fund(1 ether);
+        escrow.closeJob(JOB_ID);
+        vm.prank(stranger);
+        vm.expectRevert(JobEscrow.NotOwner.selector);
+        escrow.withdraw(JOB_ID, payable(stranger));
+    }
+
+    function test_Withdraw_ReleasesUnspentAfterClose() public {
         _fund(1 ether);
         vm.prank(relayer);
         escrow.settle(JOB_ID, TASK_ID, payable(contributor), 0.25 ether, ANNOTATION_HASH);
+        escrow.closeJob(JOB_ID);
 
         uint256 before = stranger.balance;
         vm.expectEmit(true, true, false, true);
@@ -244,24 +355,23 @@ contract JobEscrowTest is Test {
         escrow.withdraw(JOB_ID, payable(stranger));
 
         assertEq(stranger.balance, before + 0.75 ether);
-        (, uint256 budget, uint256 paid,) = _job();
-        assertEq(uint256(budget), 0.25 ether);
-        assertEq(uint256(paid), 0.25 ether);
-    }
-
-    function test_Withdraw_OnlyOwner() public {
-        _fund(1 ether);
-        vm.prank(stranger);
-        vm.expectRevert(JobEscrow.NotOwner.selector);
-        escrow.withdraw(JOB_ID, payable(stranger));
+        (, uint256 budget, uint256 paid, bool open,) = _job();
+        assertEq(budget, 0.25 ether);
+        assertEq(paid, 0.25 ether);
+        assertFalse(open);
     }
 
     function test_Withdraw_RevertsIfNothingUnspent() public {
         _fund(0.25 ether);
         vm.prank(relayer);
         escrow.settle(JOB_ID, TASK_ID, payable(contributor), 0.25 ether, ANNOTATION_HASH);
-
+        escrow.closeJob(JOB_ID);
         vm.expectRevert(JobEscrow.NothingToWithdraw.selector);
+        escrow.withdraw(JOB_ID, payable(stranger));
+    }
+
+    function test_Withdraw_RevertsIfJobMissing() public {
+        vm.expectRevert(JobEscrow.JobNotFound.selector);
         escrow.withdraw(JOB_ID, payable(stranger));
     }
 
@@ -281,14 +391,41 @@ contract JobEscrowTest is Test {
         assertEq(address(escrow).balance, budget - amount);
     }
 
-    /// @dev Always reverts on receive, to exercise the TransferFailed path.
-    receive() external payable {
-        revert("no thanks");
-    }
+    receive() external payable {}
 }
 
+/// @dev Always reverts on receive, to exercise the TransferFailed path.
 contract RejectingPayee {
     receive() external payable {
         revert("reject");
+    }
+}
+
+/**
+ * @dev A relayer who tries to settle a second task while receiving the first
+ *      payout. The guard must stop it; the inner revert is swallowed so the
+ *      test can observe that the attempt was blocked.
+ */
+contract ReentrantRelayer {
+    JobEscrow private escrow;
+    bytes32 private jobId;
+    bytes32 private taskId;
+    bool public attempted;
+    bool public blocked;
+
+    constructor(JobEscrow _escrow, bytes32 _jobId, bytes32 _taskId) {
+        escrow = _escrow;
+        jobId = _jobId;
+        taskId = _taskId;
+    }
+
+    receive() external payable {
+        attempted = true;
+        try escrow.settle(jobId, taskId, payable(address(this)), 1, bytes32(0)) {
+        // should not succeed
+        }
+        catch {
+            blocked = true;
+        }
     }
 }

@@ -3,32 +3,42 @@ pragma solidity ^0.8.24;
 
 /**
  * @title JobEscrow
- * @notice Holds native MON for annotation jobs and pays a contributor when the
- *         platform's settlement relayer confirms an accepted submission.
+ * @notice Native-MON escrow for Zeno annotation jobs on Monad testnet.
  *
- * @dev Deliberately minimal. The platform database stays the source of truth
- *      for task/annotation state; the chain enforces only the money rules:
+ * @dev The platform database stays the source of truth for task/annotation
+ *      state; the chain enforces only the money rules:
  *
  *        - only an allow-listed relayer may settle;
  *        - a task can be settled at most once;
  *        - cumulative payouts for a job can never exceed its funded budget;
+ *        - the caller of {fundJob} is the recorded funder (no arbitrary arg);
+ *        - a job must be explicitly closed before any unspent budget can be
+ *          withdrawn, so the owner cannot drain a live job;
  *        - every settlement emits `TaskSettled`, which the backend verifies
  *          (receipt status + decoded event) before recording a real receipt.
  *
- *      Roles:
- *        - owner    : deploys, manages relayers, reclaims unspent escrow;
- *        - relayer  : the backend signer (`SETTLEMENT_PRIVATE_KEY`), server-only;
- *        - buyer    : whoever funds a job (informational on-chain attribution).
+ *      Roles (deliberately separate):
+ *        - owner    : deploys, manages relayers, closes jobs, reclaims unspent
+ *                     escrow. Never a relayer unless explicitly set later.
+ *        - relayer  : the backend signer (`SETTLEMENT_PRIVATE_KEY`), server-only.
+ *        - buyer    : the first caller of {fundJob} for a job; may top it up.
+ *
+ *      Closure rule: {settle} remains callable after {closeJob} so already
+ *      accepted obligations can still be paid. The platform must therefore
+ *      close a job only once every accepted-but-unsettled obligation has been
+ *      settled (or the operator accepts that further settlement will be
+ *      under-funded). This is enforced operationally and tested here.
  */
 contract JobEscrow {
     struct Job {
-        address buyer; // first funder, informational
+        address buyer; // first funder; only this address may add funds
         uint256 budget; // total native MON deposited
         uint256 paid; // total native MON settled
+        bool open; // false once closeJob() is called
         bool exists;
     }
 
-    /// @notice Deployer; may add/remove relayers and withdraw unspent escrow.
+    /// @notice Deployer/admin; may manage relayers, close jobs and withdraw.
     address public owner;
 
     /// @notice Backend signer(s) allowed to call {settle}.
@@ -40,7 +50,10 @@ contract JobEscrow {
     /// @notice taskKey => settled, where taskKey = keccak256(jobId, taskId).
     mapping(bytes32 => bool) public settled;
 
+    bool private _entered;
+
     event JobFunded(bytes32 indexed jobId, address indexed funder, uint256 amount);
+    event JobClosed(bytes32 indexed jobId, uint256 unspent);
     event TaskSettled(
         bytes32 indexed jobId,
         bytes32 indexed taskId,
@@ -54,13 +67,18 @@ contract JobEscrow {
 
     error NotOwner();
     error NotRelayer();
+    error NotBuyer();
     error JobNotFound();
+    error JobClosedError();
+    error JobNotClosed();
     error AlreadySettled();
     error BudgetExceeded();
     error ZeroAmount();
     error ZeroAddress();
     error TransferFailed();
     error NothingToWithdraw();
+    error Reentrancy();
+    error IdenticalOwnerAndRelayer();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -72,11 +90,33 @@ contract JobEscrow {
         _;
     }
 
-    constructor() {
-        owner = msg.sender;
-        relayers[msg.sender] = true; // owner can settle until reconfigured
-        emit OwnershipTransferred(address(0), msg.sender);
-        emit RelayerSet(msg.sender, true);
+    /// @dev Minimal non-reentrant guard around external transfers.
+    modifier nonReentrant() {
+        _nonReentrantBefore();
+        _;
+        _nonReentrantAfter();
+    }
+
+    function _nonReentrantBefore() private {
+        if (_entered) revert Reentrancy();
+        _entered = true;
+    }
+
+    function _nonReentrantAfter() private {
+        _entered = false;
+    }
+
+    /**
+     * @param initialOwner  admin address (manages relayers / closes jobs)
+     * @param relayer       backend settlement signer (server-only)
+     */
+    constructor(address initialOwner, address relayer) {
+        if (initialOwner == address(0) || relayer == address(0)) revert ZeroAddress();
+        if (initialOwner == relayer) revert IdenticalOwnerAndRelayer();
+        owner = initialOwner;
+        relayers[relayer] = true;
+        emit OwnershipTransferred(address(0), initialOwner);
+        emit RelayerSet(relayer, true);
     }
 
     // ---------------------------------------------------------------
@@ -101,19 +141,42 @@ contract JobEscrow {
     // ---------------------------------------------------------------
 
     /**
-     * @notice Deposit native MON against a job.
+     * @notice Deposit native MON against a job. The caller is the funder.
+     * @dev The first caller becomes the job's `buyer` and may top it up; any
+     *      other address is rejected so audit records cannot be spoofed.
      * @param jobId keccak256 of the platform job id.
-     * @param buyer address attributed as the funder (informational).
      */
-    function fundJob(bytes32 jobId, address buyer) external payable {
+    function fundJob(bytes32 jobId) external payable {
         if (msg.value == 0) revert ZeroAmount();
+
         Job storage job = jobs[jobId];
         if (!job.exists) {
+            job.buyer = msg.sender;
+            job.open = true;
             job.exists = true;
-            job.buyer = buyer;
+        } else {
+            if (!job.open) revert JobClosedError();
+            if (job.buyer != msg.sender) revert NotBuyer();
         }
+
         job.budget += msg.value;
-        emit JobFunded(jobId, buyer, msg.value);
+        emit JobFunded(jobId, msg.sender, msg.value);
+    }
+
+    // ---------------------------------------------------------------
+    // Closure
+    // ---------------------------------------------------------------
+
+    /**
+     * @notice Freeze a job's funding so its unspent balance can be withdrawn.
+     * @dev Call only after every accepted-but-unsettled task has been settled.
+     */
+    function closeJob(bytes32 jobId) external onlyOwner {
+        Job storage job = jobs[jobId];
+        if (!job.exists) revert JobNotFound();
+        if (!job.open) revert JobClosedError();
+        job.open = false;
+        emit JobClosed(jobId, job.budget - job.paid);
     }
 
     // ---------------------------------------------------------------
@@ -121,12 +184,8 @@ contract JobEscrow {
     // ---------------------------------------------------------------
 
     /**
-     * @notice Pay a contributor for one accepted task.
-     * @param jobId keccak256 of the platform job id.
-     * @param taskId keccak256 of the platform task id.
-     * @param payee contributor payout address.
-     * @param amount native MON to transfer (wei).
-     * @param annotationHash hash of the accepted annotation payload.
+     * @notice Pay a task's contributor. Allowed while the job is open or closed
+     *         so accepted obligations can still clear after closure.
      */
     function settle(
         bytes32 jobId,
@@ -134,7 +193,7 @@ contract JobEscrow {
         address payable payee,
         uint256 amount,
         bytes32 annotationHash
-    ) external onlyRelayer {
+    ) external onlyRelayer nonReentrant {
         if (payee == address(0)) revert ZeroAddress();
         if (amount == 0) revert ZeroAmount();
 
@@ -159,11 +218,12 @@ contract JobEscrow {
     // Withdrawal
     // ---------------------------------------------------------------
 
-    /// @notice Reclaim a job's unspent escrow (owner only).
-    function withdraw(bytes32 jobId, address payable to) external onlyOwner {
+    /// @notice Reclaim a closed job's unspent escrow (owner only).
+    function withdraw(bytes32 jobId, address payable to) external onlyOwner nonReentrant {
         if (to == address(0)) revert ZeroAddress();
         Job storage job = jobs[jobId];
         if (!job.exists) revert JobNotFound();
+        if (job.open) revert JobNotClosed();
 
         uint256 remaining = job.budget - job.paid;
         if (remaining == 0) revert NothingToWithdraw();
