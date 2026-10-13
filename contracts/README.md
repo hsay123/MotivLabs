@@ -16,7 +16,7 @@ Rules enforced on-chain:
 
 ```
 src/JobEscrow.sol        the contract
-test/JobEscrow.t.sol     21 unit + fuzz tests (money rules)
+test/JobEscrow.t.sol     34 unit + fuzz tests (money rules)
 script/Deploy.s.sol      deploy + add relayer
 script/FundJob.s.sol     fund a platform job
 ```
@@ -36,8 +36,8 @@ forge test -vv
 Create a `contracts/.env` (git-ignored) or export in your shell:
 
 ```bash
-export DEPLOYER_PRIVATE_KEY=0x...   # funded Monad-testnet key
-export SETTLEMENT_RELAYER=0x...     # backend signer; defaults to the deployer
+export DEPLOYER_PRIVATE_KEY=0x...   # funded Monad-testnet key -> becomes the owner
+export SETTLEMENT_RELAYER=0x...     # backend signer; MUST differ from the deployer
 ```
 
 ## Deploy to Monad testnet
@@ -48,9 +48,12 @@ forge script script/Deploy.s.sol:DeployJobEscrow \
   --broadcast
 ```
 
-Then set on the backend: `JOB_ESCROW_ADDRESS`, `MONAD_RPC_URL`, and
-`SETTLEMENT_PRIVATE_KEY` (the relayer key). Settlement only runs for real when
-all three are present.
+Then set on the backend: `JOB_ESCROW_ADDRESS`, `MONAD_RPC_URL`,
+`SETTLEMENT_PRIVATE_KEY` (the relayer key) and `SETTLEMENT_FORBIDDEN_ADDRESS`
+(comma-separated known-compromised addresses). Settlement only runs for real when
+all of them are present **and** the fail-closed preflight passes
+(`cd backend && npm run settlement:preflight`); otherwise receipts stay
+`is_mock = true`.
 
 ## Fund a job
 

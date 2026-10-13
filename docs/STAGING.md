@@ -74,7 +74,8 @@ Environment variables (production; secrets are Vercel-encrypted):
 | `LEASE_MINUTES` / thresholds | defaults |
 | `SETTLEMENT_PRIVATE_KEY` | **secret** (set; inert until the escrow address is set) |
 | `JOB_ESCROW_ADDRESS` | **point at the OLD contract only until the corrected JobEscrow is deployed** (§4.2). Leave unset to keep settlement honestly mock |
-| `OWNER_ADDRESS` / `RELAYER_ADDRESS` (deploy inputs) | public addresses only; the keys live in `contracts/.env` (git-ignored), never in Vercel |
+| `SETTLEMENT_FORBIDDEN_ADDRESS` | comma-separated known-compromised addresses; **required** — real settlement stays off while it is missing (§4.2) |
+| `SETTLEMENT_RELAYER` (deploy input) | public address only; the keys live in `contracts/.env` (git-ignored), never in Vercel |
 
 Redeploy: `cd backend && vercel link --project zeno-api && vercel deploy --prod`.
 
@@ -158,19 +159,22 @@ identities and derives the funder from `msg.sender`):
 
 ```bash
 cd contracts
-export OWNER_ADDRESS=0x…      # fresh owner public address
-export RELAYER_ADDRESS=0x…    # fresh relayer public address (≠ owner)
-# contracts/.env holds the owner key as DEPLOYER_PRIVATE_KEY (git-ignored)
+export DEPLOYER_PRIVATE_KEY=0x…   # fresh owner key (funded); owns the contract
+export SETTLEMENT_RELAYER=0x…     # fresh relayer public address (≠ owner)
 forge script script/Deploy.s.sol:DeployJobEscrow --rpc-url monad_testnet --broadcast
 ```
 
 The corrected contract is **not deployed yet**; until it is, leave
 `JOB_ESCROW_ADDRESS` unset so receipts stay `is_mock = true`.
 
-3. Set the new `JOB_ESCROW_ADDRESS` and the fresh `SETTLEMENT_PRIVATE_KEY` on the
-   `zeno-api` Vercel project and redeploy. Real settlement turns on only when
-   `JOB_ESCROW_ADDRESS` + `MONAD_RPC_URL` + `SETTLEMENT_PRIVATE_KEY` are all
-   present; otherwise receipts stay `is_mock = true`.
+3. Set the new `JOB_ESCROW_ADDRESS`, the fresh `SETTLEMENT_PRIVATE_KEY`, and
+   `SETTLEMENT_FORBIDDEN_ADDRESS` (the old compromised address, at minimum) on
+   the `zeno-api` Vercel project and redeploy. Real settlement turns on only when
+   all of them are present **and the fail-closed preflight passes at runtime** —
+   the backend re-runs the preflight (chain 10143, escrow has code, escrow
+   reports `SETTLEMENT_ABI_VERSION`, signer is a relayer that is not the owner,
+   deny-list present and clean) before it will ever sign a payout. Any failure
+   keeps `MockSettlementService` and `is_mock = true`.
 4. Fund the job being shown (the broadcasting key is recorded as the funder):
 
    ```bash
@@ -179,6 +183,24 @@ The corrected contract is **not deployed yet**; until it is, leave
    export JOB_FUND_WEI=100000000000000000   # 0.1 MON
    forge script script/FundJob.s.sol:FundJob --rpc-url monad_testnet --broadcast
    ```
+
+### 4.3 Preview readiness (checked 2026-10-13, no deploy triggered)
+
+Both Vercel projects are linked and live:
+
+| Project | Env present (Preview + Production) | Missing |
+| --- | --- | --- |
+| `zeno-api` (`backend/`) | `SUPABASE_*`, `PRIVY_*`, `FRONTEND_ORIGIN`, `MONAD_RPC_URL`, `SETTLEMENT_PRIVATE_KEY`, tuning | `SETTLEMENT_FORBIDDEN_ADDRESS`, `JOB_ESCROW_ADDRESS` in Preview (both only needed to turn real settlement on) |
+| `zeno-web` (root) | `NEXT_PUBLIC_PRIVY_APP_ID`, `PLATFORM_API_URL`, `NEXT_PUBLIC_API_BASE_URL` | none for a mock preview |
+
+A mock-only preview needs only the **Privy allowed origin** for the preview web
+domain (`https://<preview>.vercel.app`) added in the Privy dashboard — without
+it, browser SIWE login on the preview origin is rejected. A preview that moves
+real money additionally needs the §4.2 custody + escrow work plus
+`SETTLEMENT_FORBIDDEN_ADDRESS` on `zeno-api`. Deploying this branch does **not**
+enable real settlement: the runtime preflight fails closed, so the currently
+configured production settings (old escrow + exposed key, no deny-list) fall
+back to `MockSettlementService`.
 
 ## 5. Roles / accounts
 
@@ -218,6 +240,14 @@ npx tsx scripts/set-role.ts you+admin@example.com admin
   `backend/lib/settlement/service.ts`.
 - Real settlement is still off: the corrected `JobEscrow` is not deployed and no
   fresh owner/relayer keys are funded yet (§4.2). Receipts stay `is_mock = true`.
+  The backend now re-runs the fail-closed preflight **at runtime** before it will
+  ever sign: real settlement is selected only when the three settings exist AND
+  the preflight passes (chain `10143`, escrow code present, escrow reports
+  `SETTLEMENT_ABI_VERSION`, signer is an allow-listed relayer different from the
+  owner, deny-list present and clean, including a built-in list of known-compromised
+  addresses). Otherwise `MockSettlementService` stays in effect. The live escrow
+  `0x4A8E…1fE8` is a **stale pre-hardening contract** and fails the ABI-version
+  check, so it can never receive real payouts.
 - CVAT is **not integrated**. The supported editor is the built-in workspace
   (image boxes; video timeline with seek, Set start/Set end and debounced
   autosave). The adapter design, mapping and the host/credentials a human must

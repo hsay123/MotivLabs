@@ -41,6 +41,14 @@ contract JobEscrow {
     /// @notice Deployer/admin; may manage relayers, close jobs and withdraw.
     address public owner;
 
+    /// @notice Settlement ABI/behaviour revision. The backend settlement
+    ///         preflight refuses any escrow that does not report this exact
+    ///         value, so a stale or unexpected deployment (one that merely
+    ///         happens to expose `owner`/`relayers`) can never receive real
+    ///         payouts. Bump this whenever the settlement interface changes and
+    ///         the backend's expected value in tandem.
+    uint256 public constant SETTLEMENT_ABI_VERSION = 2;
+
     /// @notice Backend signer(s) allowed to call {settle}.
     mapping(address => bool) public relayers;
 

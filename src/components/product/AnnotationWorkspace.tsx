@@ -927,6 +927,12 @@ function ImageCanvas({
     <div>
       <div className="mb-2 flex items-center justify-between gap-3">{activeClassControl}</div>
       <div
+        role="group"
+        aria-label={
+          editable
+            ? "Annotation canvas. Drag to draw a box, drag a box to move it, or drag a corner to resize it. Use the numeric fields below for keyboard entry."
+            : "Annotation canvas (read-only)."
+        }
         className={cn(
           "relative w-full overflow-hidden rounded-lg border border-line bg-night select-none",
           editable ? "cursor-crosshair" : "cursor-default",

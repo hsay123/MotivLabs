@@ -186,7 +186,7 @@ test("admin reads are admin-only: contributor 403, anonymous 401, admin 200", as
   const anonymous = await api("/api/admin/users");
   expect(anonymous.status).toBe(401);
 
-  const admin = await api("/api/admin/users", { token: tokenFrom(ADMIN) });
+  const admin = await api("/api/admin/users?per_page=100", { token: tokenFrom(ADMIN) });
   expect(admin.status, admin.text).toBe(200);
   const items = (admin.json.data as { items: { id: string }[] }).items;
   expect(items.some((row) => row.id === fixture.targetId)).toBe(true);

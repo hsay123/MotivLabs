@@ -115,9 +115,20 @@ Exact action needed from a human:
 
 1. Generate a fresh **owner** key and a fresh **relayer** key (testnet only). Share only the public
    addresses — never the keys.
-2. Fund the owner address at `https://faucet.monad.xyz`.
+2. Fund the owner address at `https://faucet.monad.xyz`; fund the **relayer** too (it pays gas to
+   broadcast `settle`, and the funder of the test job needs testnet MON as well).
 3. Deploy with the two public addresses (see `docs/STAGING.md` §4.2).
-4. Set the new `JOB_ESCROW_ADDRESS` and the fresh relayer `SETTLEMENT_PRIVATE_KEY` on `zeno-api`.
+4. Set the new `JOB_ESCROW_ADDRESS` and the fresh relayer `SETTLEMENT_PRIVATE_KEY` on `zeno-api`, and put
+   the old compromised address in `SETTLEMENT_FORBIDDEN_ADDRESS` so the preflight keeps refusing it.
+
+Before enabling anything, run the backend fail-closed preflight (`cd backend && npm run
+settlement:preflight`). It passes only when the RPC reports chain 10143, the escrow has code, the
+escrow reports `SETTLEMENT_ABI_VERSION = 2` (so a stale pre-hardening deployment is rejected), the
+configured signer is an allow-listed relayer that is **not** the owner, and
+`SETTLEMENT_FORBIDDEN_ADDRESS` is present with no configured address on it. The backend enforces
+this same preflight **at runtime** before selecting the chain service, and it always merges a
+built-in list containing the exposed address, so clearing or mis-setting the env variable can
+never re-enable it. Any failing check keeps `MockSettlementService` and `is_mock = true`.
 
 Until then, `JOB_ESCROW_ADDRESS` stays unset and receipts stay `is_mock = true`.
 

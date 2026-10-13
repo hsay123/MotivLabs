@@ -41,6 +41,8 @@ import {
   type SettlementRow,
 } from "@/lib/settlement/repository";
 import { createChainSettlementService } from "@/lib/settlement/chain";
+import { runSettlementPreflight } from "@/lib/settlement/preflight";
+import { getEnv, type Env } from "@/lib/env";
 import { sumDecimalStrings, withinBudget } from "@/lib/settlement/money";
 import type {
   EarningsSummary,
@@ -112,14 +114,71 @@ export const mockSettlementService = new MockSettlementService();
 
 /**
  * Chain settlement when `JOB_ESCROW_ADDRESS` + `MONAD_RPC_URL` +
- * `SETTLEMENT_PRIVATE_KEY` are all configured, otherwise the mock. Selected
- * lazily (not at import time) so tests can inject their own service.
+ * `SETTLEMENT_PRIVATE_KEY` are all configured **and** the fail-closed preflight
+ * passes, otherwise the mock. Selected lazily (not at import time) so tests can
+ * inject their own service.
  */
-let _defaultService: SettlementService | null = null;
+export type SettlementPreflightFn = (env: Env) => Promise<{
+  ok: boolean;
+  checks: { name: string; ok: boolean; detail: string }[];
+}>;
 
-export function getDefaultSettlementService(): SettlementService {
+export interface SelectSettlementServiceOptions {
+  env?: Env;
+  chainFactory?: (env: Env) => SettlementService | null;
+  preflight?: SettlementPreflightFn;
+}
+
+/**
+ * Choose the settlement service for the current environment.
+ *
+ * Real (on-chain) settlement is selected ONLY when the escrow/RPC/key are all
+ * configured AND the preflight passes. In every other case — not configured,
+ * RPC error, wrong chain, stale escrow, invalid owner/relayer split, or a
+ * missing/violated deny-list — the platform stays on `MockSettlementService`,
+ * so every receipt remains honestly `is_mock = true` and no transaction is ever
+ * signed by an unverified signer.
+ */
+export async function selectSettlementService(
+  options: SelectSettlementServiceOptions = {},
+): Promise<SettlementService> {
+  const env = options.env ?? getEnv();
+  const chainFactory = options.chainFactory ?? createChainSettlementService;
+  const preflight = options.preflight ?? ((value: Env) => runSettlementPreflight(value));
+
+  const chain = chainFactory(env);
+  if (!chain) return mockSettlementService;
+
+  try {
+    const report = await preflight(env);
+    if (report.ok) return chain;
+    const failed = report.checks
+      .filter((check) => !check.ok)
+      .map((check) => `${check.name}: ${check.detail}`);
+    console.warn(
+      "[settlement] real settlement is configured but the safety preflight failed; " +
+        `falling back to MockSettlementService (is_mock = true). ${failed.join(" | ")}`,
+    );
+  } catch (error) {
+    console.warn(
+      "[settlement] safety preflight could not be evaluated " +
+        `(${error instanceof Error ? error.message : String(error)}); ` +
+        "falling back to MockSettlementService (is_mock = true).",
+    );
+  }
+
+  return mockSettlementService;
+}
+
+let _defaultService: Promise<SettlementService> | null = null;
+
+/**
+ * The process-wide default service. Memoised so the preflight (a handful of
+ * read-only RPC calls) runs once per warm instance instead of on every payout.
+ */
+export function getDefaultSettlementService(): Promise<SettlementService> {
   if (!_defaultService) {
-    _defaultService = createChainSettlementService() ?? mockSettlementService;
+    _defaultService = selectSettlementService();
   }
   return _defaultService;
 }
@@ -158,7 +217,7 @@ export interface SettleAcceptedTaskInput {
 export async function settleAcceptedTask(
   input: SettleAcceptedTaskInput,
 ): Promise<Receipt> {
-  const service = input.settlementService ?? getDefaultSettlementService();
+  const service = input.settlementService ?? (await getDefaultSettlementService());
 
   const submission = await loadSubmission(input.submissionId);
   if (submission.task_id !== input.taskId) {
@@ -279,14 +338,20 @@ async function finalizeSettlement(
  * transaction (after re-verifying it on-chain) and report the rest. Admin-facing.
  */
 export async function reconcileSettlements(
-  service: SettlementService = getDefaultSettlementService(),
+  service?: SettlementService,
 ): Promise<{ finalized: string[]; unresolved: SettlementRow[] }> {
+  const active = service ?? (await getDefaultSettlementService());
   const incomplete = await listIncompleteSettlements();
   const finalized: string[] = [];
   const unresolved: SettlementRow[] = [];
 
   for (const row of incomplete) {
-    if (row.tx_hash && service.verify) {
+    if (row.tx_hash && active.verify) {
+      // Re-verify against the contributor's real payout address. Passing `null`
+      // here can never match the on-chain `TaskSettled.payee`, so a genuine
+      // settlement would be stuck unresolved forever (and a recovery could not
+      // finalise it). A contributor with no wallet address stays unresolved.
+      const payeeAddress = await loadUserWalletAddress(row.contributor_id);
       const request: SettlementRequest = {
         jobId: row.job_id,
         taskId: row.task_id,
@@ -294,9 +359,9 @@ export async function reconcileSettlements(
         annotationHash: row.annotation_hash,
         policyHash: row.policy_hash ?? "",
         amount: row.amount,
-        payeeAddress: null,
+        payeeAddress,
       };
-      const verified = await service.verify(request, row.tx_hash);
+      const verified = await active.verify(request, row.tx_hash);
       if (verified) {
         await finalizeSettlement(row, verified);
         finalized.push(row.id);

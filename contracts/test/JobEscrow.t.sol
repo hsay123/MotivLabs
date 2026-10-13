@@ -85,6 +85,12 @@ contract JobEscrowTest is Test {
         new JobEscrow(owner, address(0));
     }
 
+    function test_Constructor_ReportsSettlementAbiVersion() public view {
+        // The backend fail-closed preflight gates real settlement on this value:
+        // an escrow that does not report it is treated as stale and never paid.
+        assertEq(escrow.SETTLEMENT_ABI_VERSION(), 2);
+    }
+
     function test_SetRelayer_OnlyOwnerAndEmits() public {
         vm.prank(stranger);
         vm.expectRevert(JobEscrow.NotOwner.selector);

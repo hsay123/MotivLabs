@@ -51,8 +51,10 @@ const envSchema = z.object({
     .optional()
     .default("30")
     .transform((v) => parseInt(v, 10)),
-  // JobEscrow contract + settlement relayer (all three required for real
-  // settlement; with any missing, MockSettlementService stays in effect).
+  // JobEscrow contract + settlement relayer. Real settlement is selected only
+  // when all three are set AND the fail-closed preflight passes; with any
+  // missing, or any preflight check failing, MockSettlementService stays in
+  // effect (receipts stay is_mock = true).
   JOB_ESCROW_ADDRESS: z
     .string()
     .optional()
@@ -68,6 +70,12 @@ const envSchema = z.object({
       (v) => !v || /^0x[0-9a-fA-F]{64}$/.test(v),
       "SETTLEMENT_PRIVATE_KEY must be a 32-byte 0x-prefixed private key",
     ),
+  // Comma-separated deny-list of addresses that must never act as the
+  // settlement signer or escrow owner (e.g. a key known to have been exposed).
+  // REQUIRED before real settlement can be enabled: the preflight fails closed
+  // when it is empty, and it is merged with a built-in list of known-compromised
+  // addresses that can never be removed from the environment alone.
+  SETTLEMENT_FORBIDDEN_ADDRESS: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
