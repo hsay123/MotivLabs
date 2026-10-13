@@ -184,6 +184,24 @@ The corrected contract is **not deployed yet**; until it is, leave
    forge script script/FundJob.s.sol:FundJob --rpc-url monad_testnet --broadcast
    ```
 
+### 4.3 Preview readiness (checked 2026-10-13, no deploy triggered)
+
+Both Vercel projects are linked and live:
+
+| Project | Env present (Preview + Production) | Missing |
+| --- | --- | --- |
+| `zeno-api` (`backend/`) | `SUPABASE_*`, `PRIVY_*`, `FRONTEND_ORIGIN`, `MONAD_RPC_URL`, `SETTLEMENT_PRIVATE_KEY`, tuning | `SETTLEMENT_FORBIDDEN_ADDRESS`, `JOB_ESCROW_ADDRESS` in Preview (both only needed to turn real settlement on) |
+| `zeno-web` (root) | `NEXT_PUBLIC_PRIVY_APP_ID`, `PLATFORM_API_URL`, `NEXT_PUBLIC_API_BASE_URL` | none for a mock preview |
+
+A mock-only preview needs only the **Privy allowed origin** for the preview web
+domain (`https://<preview>.vercel.app`) added in the Privy dashboard — without
+it, browser SIWE login on the preview origin is rejected. A preview that moves
+real money additionally needs the §4.2 custody + escrow work plus
+`SETTLEMENT_FORBIDDEN_ADDRESS` on `zeno-api`. Deploying this branch does **not**
+enable real settlement: the runtime preflight fails closed, so the currently
+configured production settings (old escrow + exposed key, no deny-list) fall
+back to `MockSettlementService`.
+
 ## 5. Roles / accounts
 
 Promote real Privy accounts to buyer/reviewer/admin after first login:
