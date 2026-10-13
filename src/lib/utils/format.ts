@@ -1,11 +1,17 @@
 /** Small formatting helpers shared across product screens. */
 
-export function formatUsd(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
+/**
+ * Testnet-MON amounts are displayed as MON, never as a fiat value: there is no
+ * MON↔USD equivalence to imply. Input is the decimal string the API returns
+ * (`"0.100000"` → `"0.1 MON"`), so no floating-point rounding creeps in.
+ */
+export function formatMon(value: string | number): string {
+  const raw = typeof value === "number" ? value.toFixed(6) : value;
+  const negative = raw.startsWith("-");
+  const [whole = "0", fraction = ""] = raw.replace("-", "").split(".");
+  const trimmed = fraction.replace(/0+$/, "");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${negative ? "-" : ""}${grouped}${trimmed ? `.${trimmed}` : ""} MON`;
 }
 
 export function formatCount(value: number): string {

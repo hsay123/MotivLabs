@@ -7,7 +7,7 @@ import { WorkspaceHeader, Stat } from "@/components/product/WorkspaceHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { FileText } from "@/components/ui/icons";
-import { formatDate, formatUsd } from "@/lib/utils/format";
+import { formatDate, formatMon } from "@/lib/utils/format";
 
 /**
  * Earnings.
@@ -49,12 +49,12 @@ export function ContributorEarnings() {
               <div className="grid gap-4 sm:grid-cols-3">
                 <Stat
                   label="Settled"
-                  value={formatUsd(Number(summary.total_paid))}
+                  value={formatMon(summary.total_paid)}
                   hint={`${settled.length} task${settled.length === 1 ? "" : "s"} paid`}
                 />
                 <Stat
                   label="Eligible, not settled"
-                  value={formatUsd(Number(summary.total_pending))}
+                  value={formatMon(summary.total_pending)}
                   hint={`${eligible.length} accepted task${eligible.length === 1 ? "" : "s"}`}
                   tone="muted"
                 />
@@ -96,7 +96,7 @@ export function ContributorEarnings() {
                             <StatusChip status={task.status} />
                           </td>
                           <td className="px-5 py-3 text-ink-3 tnum">
-                            {formatUsd(Number(task.reward))}
+                            {formatMon(task.reward)}
                           </td>
                           <td className="px-5 py-3 text-ink-3">
                             {formatDate(task.submitted_at)}
