@@ -77,6 +77,47 @@ Environment variables (production; secrets are Vercel-encrypted):
 
 Redeploy: `cd backend && vercel link --project zeno-api && vercel deploy --prod`.
 
+### 2.3 GitHub integration — Root Directory decides which app builds
+
+The GitHub app deploys **both** projects on every push. Which app a project
+builds is decided by its **Root Directory** setting, which lives only in the
+Vercel project (never in the repo), so it can drift silently:
+
+| Project | Root Directory | Builds |
+| --- | --- | --- |
+| `zeno-web` | `.` (repo root) | the frontend (`motivelabs@0.1.0`) |
+| `zeno-api` | `backend` | the API (`backend@0.1.0`) |
+
+Observed failure (main `38a2afc`): `zeno-api` had its Root Directory **empty**,
+so the GitHub build ran the repo-root **frontend** inside the API project. That
+project has no `NEXT_PUBLIC_PRIVY_APP_ID`, so static prerender of `/_not-found`
+threw from `src/components/providers/Providers.tsx` and the deployment errored.
+The app code was fine — the project was pointed at the wrong directory.
+
+Symptom in a failing `zeno-api` build log:
+
+```
+Cloning github.com/hsay123/Zeno (Branch: main, Commit: <sha>)
+> motivelabs@0.1.0 build                     <-- wrong root (frontend)
+Error: NEXT_PUBLIC_PRIVY_APP_ID is not set   (src/components/providers/Providers.tsx)
+```
+
+Correct build for the same push:
+
+```
+Cloning github.com/hsay123/Zeno (Branch: main, Commit: <sha>)
+> backend@0.1.0 build
+```
+
+Fix / check: in the `zeno-api` project **Settings → Build & Development**, set
+**Root Directory = `backend`**. Then a git-triggered production deployment for
+`main` must log `> backend@0.1.0 build` and serve `/api/health` with `200`.
+
+> CLI note: deploy the backend with `cd backend && vercel deploy --prod`. A CLI
+> deploy from the repo root fails with *"The specified Root Directory 'backend'
+> does not exist"* because the root `.vercelignore` excludes `backend/` from
+> the upload.
+
 ## 3. Verified so far
 
 | Check | Result |
