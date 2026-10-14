@@ -7,6 +7,44 @@
  *   { error: { code: string; message: string; details?: unknown } }  on failure
  */
 
+import { z } from "zod";
+import {
+  userRoleSchema,
+  userStatusSchema,
+  modalitySchema,
+  jobStatusSchema,
+  taskStatusSchema,
+  reviewerTypeSchema,
+  decisionSchema,
+  appealStatusSchema,
+  imageBoxesPayloadSchema,
+  actionSegmentsPayloadSchema,
+  annotationPayloadSchema,
+  meProfileSchema,
+  currentUserSchema,
+  onboardingCompleteRequestSchema,
+  onboardingCompleteResponseSchema,
+  projectSchema,
+  assetSchema,
+  jobSchema,
+  taskSchema,
+  claimResultSchema,
+  draftSaveResultSchema,
+  uploadUrlResultSchema,
+  submissionSchema,
+  reviewSchema,
+  reviewQueueItemSchema,
+  appealSchema,
+  appealQueueItemSchema,
+  publicReceiptSchema,
+  adminUserSchema,
+  exportManifestSchema,
+  receiptSchema,
+  earningsSummarySchema,
+  boundingBoxSchema,
+  actionSegmentSchema,
+} from "../../../src/lib/api/platform";
+
 // ============================================================
 // Enums
 // ============================================================
@@ -112,6 +150,8 @@ export interface ContributorProfile {
   tasks_completed: number;
   consent_version: string | null;
   consented_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Project {
@@ -139,6 +179,7 @@ export interface SchemaVersion {
   id: string;
   modality: Modality;
   schema_name: string;
+  json_schema: Record<string, unknown>;
   label_list: string[];
   version_hash: string;
   created_at: string;
@@ -168,7 +209,6 @@ export interface Job {
   funding_tx_hash: string | null;
   funding_wallet_address: string | null;
   funded_at: string | null;
-  funding_wallet_address?: string | null;
   is_demo: boolean;
 }
 
@@ -187,6 +227,7 @@ export interface Task {
   signed_media_url?: string;
   created_at: string;
   updated_at: string;
+  is_demo: boolean;
   // Note: gold_answer is never returned to contributors
 }
 
@@ -397,10 +438,24 @@ export interface EarningsSummary {
     status: TaskStatus;
     reward: string;
     submitted_at: string;
-    /** Payout receipt id, or null when the task is not settled yet. */
     receipt_id: string | null;
-    /** Whether the recorded payout is a mock settlement (never on-chain). */
     settlement_is_mock: boolean | null;
     tx_hash: string | null;
   }>;
 }
+
+export interface UploadUrlResult {
+  upload_url: string;
+  object_key: string;
+}
+
+export function paginatedSchema<T extends z.ZodTypeAny>(item: T) {
+  return z.object({
+    items: z.array(item),
+    total: z.number(),
+    page: z.number(),
+    per_page: z.number(),
+  });
+}
+
+// All types are defined as interfaces above. No z.infer exports needed.

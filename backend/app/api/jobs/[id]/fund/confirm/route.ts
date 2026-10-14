@@ -68,7 +68,7 @@ export async function POST(
       // Verify the transaction is a fundJob call to the correct escrow
       const logs = receipt.logs.filter(log => log.address.toLowerCase() === env.JOB_ESCROW_ADDRESS!.toLowerCase());
       let jobFunded = false;
-      let fundedAmount = 0n;
+      let fundedAmount = BigInt(0);
 
       for (const log of logs) {
         try {
@@ -80,7 +80,7 @@ export async function POST(
           }) as [Address, bigint, bigint, boolean, boolean];
           
           const [buyer, budget, paid, open, exists] = decoded;
-          if (exists && budget > 0n) {
+          if (exists && budget > BigInt(0)) {
             jobFunded = true;
             fundedAmount = budget;
             break;

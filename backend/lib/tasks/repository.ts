@@ -14,7 +14,7 @@ export type TaskRow = Record<string, unknown>;
 
 /** Columns safe to expose to contributors (never `gold_answer`). */
 export const TASK_PUBLIC_COLUMNS =
-  "id, job_id, asset_id, modality, status, is_gold, lease_owner, lease_expiry, created_at, updated_at";
+  "id, job_id, asset_id, modality, status, is_gold, lease_owner, lease_expiry, created_at, updated_at, is_demo";
 
 export function toTask(row: TaskRow, signedMediaUrl?: string): Task {
   const task: Task = {
@@ -28,6 +28,7 @@ export function toTask(row: TaskRow, signedMediaUrl?: string): Task {
     lease_expiry: (row.lease_expiry as string | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
+    is_demo: (row.is_demo as boolean) ?? false,
   };
   if (signedMediaUrl) task.signed_media_url = signedMediaUrl;
   return task;
