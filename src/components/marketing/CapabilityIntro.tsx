@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { capabilityIntro } from "@/lib/content/landing";
 import { Container } from "@/components/ui/Container";
 import { Section } from "@/components/ui/Section";
@@ -241,20 +242,20 @@ export function CapabilityIntro() {
               </div>
             </div>
 
-            {/* Media placeholder container for future image/video on the right side */}
+            {/* Workflow Media — D1.png */}
             <div
               className="hidden lg:block absolute right-0 top-1/2 -translate-y-1/2 w-[50%] max-w-[600px] h-[70%] min-h-[400px] pointer-events-none"
-              style={{ opacity: 0.03 }}
-              aria-label="Workflow media placeholder"
+              aria-label="Workflow media"
             >
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center text-[#9CA3AF] text-sm px-8">
-                  <svg className="mx-auto mb-2 h-8 w-8 text-[#CCFF00]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <p>Workflow media placeholder</p>
-                  <p className="text-xs mt-1">Future image or video asset</p>
-                </div>
+                <Image
+                  src="/images/d1.png"
+                  alt="Zeno workflow visualization"
+                  fill
+                  className="object-contain"
+                  priority
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
               </div>
             </div>
           </div>
