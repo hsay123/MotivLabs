@@ -50,16 +50,17 @@ jobs:
           echo "$DEPLOYMENTS" | jq '.deployments[0] | {url, target, readyState, "meta.githubCommitRef": .meta.githubCommitRef, createdAt}' 2>/dev/null || echo "Debug failed"
           
           # Parse JSON - Vercel returns object with deployments array
+          # Note: target and readyState are null in CLI output, filter by githubCommitRef only
           DEPLOYMENT_URL=$(echo "$DEPLOYMENTS" | jq -r '
             .deployments
-            | map(select(.target=="preview" and .readyState=="READY" and .meta.githubCommitRef=="release/rc-integration"))
+            | map(select(.meta.githubCommitRef=="release/rc-integration"))
             | sort_by(.createdAt) | reverse | .[0] | .url
           ')
           
           if [ -z "$DEPLOYMENT_URL" ] || [ "$DEPLOYMENT_URL" = "null" ]; then
-            echo "::error::No READY frontend Preview deployment found for release/rc-integration branch"
-            echo "All preview deployments:"
-            echo "$DEPLOYMENTS" | jq -r '.deployments[] | select(.target=="preview") | "\(.url) readyState=\(.readyState) ref=\(.meta.githubCommitRef) created=\(.createdAt)"'
+            echo "::error::No frontend Preview deployment found for release/rc-integration branch"
+            echo "All deployments:"
+            echo "$DEPLOYMENTS" | jq -r '.deployments[] | "\(.url) target=\(.target) readyState=\(.readyState) ref=\(.meta.githubCommitRef) created=\(.createdAt)"'
             exit 1
           fi
           
@@ -87,14 +88,14 @@ jobs:
           # Parse JSON - Vercel returns object with deployments array
           DEPLOYMENT_URL=$(echo "$DEPLOYMENTS" | jq -r '
             .deployments
-            | map(select(.target=="preview" and .readyState=="READY" and .meta.githubCommitRef=="release/rc-integration"))
+            | map(select(.meta.githubCommitRef=="release/rc-integration"))
             | sort_by(.createdAt) | reverse | .[0] | .url
           ')
           
           if [ -z "$DEPLOYMENT_URL" ] || [ "$DEPLOYMENT_URL" = "null" ]; then
-            echo "::error::No READY backend Preview deployment found for release/rc-integration branch"
-            echo "All preview deployments:"
-            echo "$DEPLOYMENTS" | jq -r '.deployments[] | select(.target=="preview") | "\(.url) readyState=\(.readyState) ref=\(.meta.githubCommitRef) created=\(.createdAt)"'
+            echo "::error::No backend Preview deployment found for release/rc-integration branch"
+            echo "All deployments:"
+            echo "$DEPLOYMENTS" | jq -r '.deployments[] | "\(.url) target=\(.target) readyState=\(.readyState) ref=\(.meta.githubCommitRef) created=\(.createdAt)"'
             exit 1
           fi
           
