@@ -3,72 +3,71 @@ import { MediaPlaceholder } from "@/components/media/MediaPlaceholder";
 import { Container } from "@/components/ui/Container";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { BentoCard } from "@/components/ui/BentoCard";
 import { cn } from "@/lib/utils/cn";
 
 /**
- * Machine-learning use cases.
+ * Machine-learning use cases — Encord Bento Box Style.
  *
- * Four items on an asymmetric grid — 7/5 then 5/7 — so each reads as a
- * distinct case rather than a uniform tile. Copy stays inside what the
- * current schema actually supports.
+ * Four bento box cards in a 2-column grid layout with media at top,
+ * title and description below, and tags at bottom.
  */
-const spans = [
-  "lg:col-span-7",
-  "lg:col-span-5",
-  "lg:col-span-5",
-  "lg:col-span-7",
-] as const;
-
 export function UseCases() {
   return (
-    <Section tone="surface" spacing="default" divider contained={false}>
-      <Container size="default">
-        <SectionHeading
-          eyebrow={useCases.eyebrow}
-          title={useCases.heading}
-          description={useCases.support}
-        />
+    <Section tone="canvas" spacing="default" divider contained={false}>
+      <Container size="wide">
+        {/* Section Header */}
+        <div className="text-center mb-16 lg:mb-24 max-w-3xl mx-auto">
+          <p className="eyebrow justify-center text-[#666666]">
+            <span aria-hidden className="inline-block h-1 w-1 rounded-full bg-[#CCFF00]" />
+            {useCases.eyebrow}
+          </p>
+          <h2 className="mt-6 text-display-lg text-[#000000] font-bold tracking-[-0.04em] leading-[1.0] max-w-2xl mx-auto">
+            {useCases.heading}
+          </h2>
+          <p className="mt-6 text-body-lg text-[#333333] max-w-2xl mx-auto leading-relaxed">
+            {useCases.support}
+          </p>
+        </div>
 
-        <ul className="mt-12 grid gap-6 lg:grid-cols-12 lg:gap-8">
+        {/* Bento Grid - 2 Column Layout */}
+        <ul className="mt-12 grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-2 max-w-[1400px] mx-auto">
           {useCases.items.map((item, index) => (
             <li
               key={item.id}
               id={item.id}
-              className={cn("scroll-mt-28", spans[index])}
+              className="bento-card flex flex-col min-h-[420px]"
             >
-              <article className="group flex h-full flex-col overflow-hidden rounded-lg border border-line bg-canvas">
-                <MediaPlaceholder
-                  asset={item.asset}
-                  tone="light"
-                  className="rounded-none border-0 border-b"
-                  sizes="(min-width: 1024px) 700px, 100vw"
-                />
-                <div className="flex flex-1 flex-col p-6">
-                  <h3 className="font-display text-display-sm text-ink">
+              <div className="flex flex-col h-full">
+                <div className="relative aspect-video lg:aspect-[4/3] rounded-xl overflow-hidden mb-8">
+                  <MediaPlaceholder
+                    asset={item.asset}
+                    tone="light"
+                    sizes="(min-width: 1024px) 700px, 100vw"
+                  />
+                </div>
+                <div className="flex flex-1 flex-col">
+                  <h3 className="text-2xl lg:text-3xl font-bold text-[#000000] tracking-[-0.02em] mb-4">
                     {item.title}
                   </h3>
-                  <p className="mt-3 flex-1 text-body-sm text-ink-3">{item.body}</p>
-                  <ul className="mt-5 flex flex-wrap gap-2">
+                  <p className="text-[#333333] leading-relaxed flex-1 mb-6">
+                    {item.body}
+                  </p>
+                  <ul className="mt-auto flex flex-wrap gap-2">
                     {item.tags.map((tag) => (
                       <li
                         key={tag}
-                        className="rounded-full border border-line bg-surface px-2.5 py-0.5 text-caption text-ink-3"
+                        className="rounded-full border border-[#E0E0E0] bg-white px-3 py-1 text-sm font-medium text-[#333333]"
                       >
                         {tag}
                       </li>
                     ))}
                   </ul>
                 </div>
-              </article>
+              </div>
             </li>
           ))}
         </ul>
-
-        <p className="mt-8 max-w-3xl text-caption text-ink-4">
-          Depth, LiDAR, point clouds and synchronised multi-sensor annotation are
-          not supported yet. They are on the roadmap and are listed here only as
-          future scope — not current capability.
-        </p>
       </Container>
     </Section>
   );
