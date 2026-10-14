@@ -33,7 +33,7 @@ export const credibilityCategories = [
 
 export const capabilityIntro = {
   eyebrow: "The workflow",
-  heading: "From raw images and video to training-ready datasets.",
+  heading: "From raw images and video <br class=\"hidden md:block\" /> to training-ready datasets.",
   support:
     "One connected workflow for collecting, labelling, reviewing and delivering high-quality data. Every accepted label keeps the schema version, review decision and receipt behind it.",
 } as const;

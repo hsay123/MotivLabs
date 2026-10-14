@@ -1,134 +1,129 @@
 @import "tailwindcss";
 
 /*
-  Zeno — design tokens
+  Zeno — Encord-inspired design tokens
   ------------------------------------------------------------------
-  Visual direction adapted from a restrained enterprise Physical-AI
-  reference: warm neutral surfaces, deep ink type, a single violet
-  accent, hairline borders and generous whitespace.
-
-  All values below feed Tailwind v4 utilities (bg-surface, text-ink,
-  rounded-lg, text-display-lg, …). The marketing site and the product
-  application share these tokens; the product app layers a denser
-  spacing rhythm on top (see .dense-* utilities at the bottom).
+  High-contrast, dynamic aesthetic: Pure White, Pure Black, Bright Lime Green.
+  Clean geometric sans-serif (Inter), bold weights, tight letter-spacing.
+  Bento Box grid system for feature cards.
 */
 
 @theme {
   /* ---- Typography -------------------------------------------------- */
-  --font-display: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono-code), ui-monospace, "SFMono-Regular", monospace;
 
-  /* Fluid display sizes. Line-height, tracking and weight are baked
-     in so headings stay consistent everywhere they are reused. */
-  --text-display-xl: clamp(2.75rem, 6.6vw, 6.125rem);
-  --text-display-xl--line-height: 0.98;
-  --text-display-xl--letter-spacing: -0.04em;
-  --text-display-xl--font-weight: 300;
+  /* Fluid display sizes — bold, tight tracking for Encord-style headings */
+  --text-display-xl: clamp(3rem, 7vw, 6.5rem);
+  --text-display-xl--line-height: 0.95;
+  --text-display-xl--letter-spacing: -0.045em;
+  --text-display-xl--font-weight: 700;
 
-  --text-display-lg: clamp(2.125rem, 4.4vw, 3.75rem);
-  --text-display-lg--line-height: 1.02;
-  --text-display-lg--letter-spacing: -0.035em;
-  --text-display-lg--font-weight: 300;
+  --text-display-lg: clamp(2.25rem, 4.5vw, 4rem);
+  --text-display-lg--line-height: 1.0;
+  --text-display-lg--letter-spacing: -0.04em;
+  --text-display-lg--font-weight: 700;
 
-  --text-display-md: clamp(1.625rem, 2.8vw, 2.5rem);
-  --text-display-md--line-height: 1.1;
+  --text-display-md: clamp(1.75rem, 3vw, 2.75rem);
+  --text-display-md--line-height: 1.05;
   --text-display-md--letter-spacing: -0.03em;
-  --text-display-md--font-weight: 300;
+  --text-display-md--font-weight: 700;
 
-  --text-display-sm: clamp(1.375rem, 1.9vw, 1.75rem);
-  --text-display-sm--line-height: 1.2;
+  --text-display-sm: clamp(1.5rem, 2vw, 2rem);
+  --text-display-sm--line-height: 1.15;
   --text-display-sm--letter-spacing: -0.02em;
-  --text-display-sm--font-weight: 400;
+  --text-display-sm--font-weight: 600;
 
-  --text-title: 1.125rem;
-  --text-title--line-height: 1.5;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.4;
   --text-title--letter-spacing: -0.01em;
-  --text-title--font-weight: 500;
+  --text-title--font-weight: 600;
 
   --text-body-lg: 1.125rem;
-  --text-body-lg--line-height: 1.65;
+  --text-body-lg--line-height: 1.6;
+  --text-body-lg--font-weight: 400;
 
   --text-body: 1rem;
-  --text-body--line-height: 1.65;
+  --text-body--line-height: 1.6;
 
   --text-body-sm: 0.875rem;
-  --text-body-sm--line-height: 1.6;
+  --text-body-sm--line-height: 1.55;
 
   --text-caption: 0.8125rem;
   --text-caption--line-height: 1.5;
 
   --text-eyebrow: 0.75rem;
   --text-eyebrow--line-height: 1.2;
-  --text-eyebrow--letter-spacing: 0.09em;
-  --text-eyebrow--font-weight: 500;
+  --text-eyebrow--letter-spacing: 0.1em;
+  --text-eyebrow--font-weight: 600;
 
-  /* ---- Surfaces & ink (warm neutral) ------------------------------- */
-  --color-canvas: #faf9f7;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f4f2ef;
-  --color-surface-sunken: #efece8;
+  /* ---- Surfaces & Ink — Encord High Contrast ----------------------- */
+  --color-canvas: #FFFFFF;        /* Pure White */
+  --color-surface: #FFFFFF;       /* Pure White */
+  --color-surface-muted: #F5F5F5; /* Off-white for subtle contrast */
+  --color-surface-sunken: #EAEAEA;
 
-  --color-ink: #16130e;
-  --color-ink-2: #423d35;
-  --color-ink-3: #6d675c;
-  --color-ink-4: #9a948a;
+  --color-ink: #000000;           /* Pure Black */
+  --color-ink-2: #1A1A1A;         /* Near Black */
+  --color-ink-3: #333333;         /* Dark Charcoal */
+  --color-ink-4: #666666;         /* Medium Grey */
 
-  --color-line: #e8e5e0;
-  --color-line-strong: #d7d3cc;
-  --color-line-inverse: rgba(255, 255, 255, 0.14);
+  --color-line: #E0E0E0;          /* Light Grey borders */
+  --color-line-strong: #CCCCCC;   /* Stronger borders */
+  --color-line-inverse: rgba(0, 0, 0, 0.12);
 
-  /* ---- Violet / indigo accent -------------------------------------- */
-  --color-accent-50: #f4f2ff;
-  --color-accent-100: #eae6ff;
-  --color-accent-200: #d7cfff;
-  --color-accent-300: #bcaeff;
-  --color-accent-400: #9b85fb;
-  --color-accent-500: #7c61f2;
-  --color-accent-600: #6547e4;
-  --color-accent-700: #5334c7;
-  --color-accent-800: #452ba2;
-  --color-accent-900: #2e1c6e;
-  --color-accent-950: #191043;
+  /* ---- Lime Green Accent (Encord) ---------------------------------- */
+  --color-accent-50:  #F4FFF0;
+  --color-accent-100: #E0FFD9;
+  --color-accent-200: #C8FFB3;
+  --color-accent-300: #A0FF80;
+  --color-accent-400: #80FF40;
+  --color-accent-500: #66FF00;
+  --color-accent-600: #CCFF00;    /* Primary Lime Green - #CCFF00 */
+  --color-accent-700: #A3CC00;
+  --color-accent-800: #85A300;
+  --color-accent-900: #688000;
+  --color-accent-950: #334000;
 
   /* ---- Night (dark bands, footers, media wells) -------------------- */
-  --color-night: #14111f;
-  --color-night-2: #1d1930;
-  --color-night-3: #2a2444;
-  --color-night-ink: #f6f5fb;
-  --color-night-ink-2: rgba(246, 245, 251, 0.72);
-  --color-night-ink-3: rgba(246, 245, 251, 0.52);
+  --color-night: #000000;         /* Pure Black for dark sections */
+  --color-night-2: #111111;
+  --color-night-3: #1A1A1A;
+  --color-night-ink: #FFFFFF;     /* Pure White on dark */
+  --color-night-ink-2: rgba(255, 255, 255, 0.8);
+  --color-night-ink-3: rgba(255, 255, 255, 0.5);
 
-  /* ---- Status (never colour-only; always paired with text/icon) ---- */
-  --color-success-bg: #e7f4ec;
-  --color-success-fg: #16633c;
-  --color-success-line: #bfe0cd;
+  /* ---- Status ------------------------------------------------------ */
+  --color-success-bg: #F0FFF4;
+  --color-success-fg: #166534;
+  --color-success-line: #BBF7D0;
 
-  --color-pending-bg: #fbf1dd;
-  --color-pending-fg: #88590f;
-  --color-pending-line: #ecd6a8;
+  --color-pending-bg: #FFFDF4;
+  --color-pending-fg: #854D0E;
+  --color-pending-line: #FDE047;
 
-  --color-danger-bg: #fceceb;
-  --color-danger-fg: #9f2f24;
-  --color-danger-line: #f2cfcb;
+  --color-danger-bg: #FFF1F2;
+  --color-danger-fg: #991B1B;
+  --color-danger-line: #FCA5A5;
 
-  --color-info-bg: #eeebff;
-  --color-info-fg: #4b31c4;
-  --color-info-line: #d5ccff;
+  --color-info-bg: #F0F9FF;
+  --color-info-fg: #0369A1;
+  --color-info-line: #BAE6FD;
 
   /* ---- Radii ------------------------------------------------------- */
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 28px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 16px;       /* Bento box radius */
+  --radius-xl: 24px;       /* Large bento box radius */
+  --radius-2xl: 32px;
 
   /* ---- Motion ------------------------------------------------------ */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* ---- Layout ------------------------------------------------------ */
-  --spacing-container: 80rem; /* 1280px content max width */
+  --spacing-container: 80rem;      /* 1280px content max width */
   --spacing-container-wide: 90rem; /* 1440px */
 }
 
@@ -152,14 +147,14 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-size: var(--text-body);
-    line-height: 1.65;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
   ::selection {
-    background-color: var(--color-accent-200);
-    color: var(--color-accent-950);
+    background-color: var(--color-accent-600); /* Lime Green selection */
+    color: var(--color-ink);
   }
 
   :focus-visible {
@@ -168,12 +163,11 @@
     border-radius: 4px;
   }
 
-  h1,
-  h2,
-  h3,
-  h4 {
+  h1, h2, h3, h4 {
     font-family: var(--font-display);
     text-wrap: balance;
+    font-weight: 700;
+    letter-spacing: -0.03em;
   }
 
   p {
@@ -199,9 +193,9 @@
     gap: 0.5rem;
     font-size: var(--text-eyebrow);
     line-height: 1.2;
-    letter-spacing: 0.09em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--color-ink-3);
   }
 
@@ -217,29 +211,78 @@
   /* Fine, low-contrast grid paper used behind media wells. */
   .bg-grid {
     background-image:
-      linear-gradient(to right, rgba(22, 19, 14, 0.045) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(22, 19, 14, 0.045) 1px, transparent 1px);
+      linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
     background-size: 56px 56px;
   }
 
   .bg-grid-dark {
     background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+      linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
     background-size: 56px 56px;
   }
 
   /* A measured amount of blur is applied on sticky chrome. */
   .backdrop-chrome {
-    background-color: color-mix(in srgb, var(--color-canvas) 82%, transparent);
+    background-color: color-mix(in srgb, var(--color-canvas) 90%, transparent);
     backdrop-filter: saturate(180%) blur(14px);
     -webkit-backdrop-filter: saturate(180%) blur(14px);
   }
+
+  /* Encord-style Lime Green Primary Button */
+  .btn-primary-encord {
+    background-color: #CCFF00;
+    color: #000000;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+  .btn-primary-encord:hover {
+    background-color: #B8E600;
+    transform: translateY(-1px);
+  }
+  .btn-primary-encord:active {
+    background-color: #A3CC00;
+    transform: translateY(0);
+  }
+
+  /* Lime Green Text Link (Encord style) */
+  .link-lime {
+    color: #CCFF00;
+    font-weight: 500;
+    transition: color 0.15s ease;
+  }
+  .link-lime:hover {
+    color: #B8E600;
+  }
+
+  /* Logo Marquee Item - grayscale filter for monochrome logos */
+  .logo-marquee-item {
+    filter: grayscale(100%) contrast(120%);
+  }
 }
 
-/* ==================================================================
-   Utilities
-   ================================================================== */
+/* Bento Box Card - Encord Style (as utility for Tailwind v4) */
+@utility bento-card {
+  background-color: #F9F9FA;
+  border-radius: 24px;
+  border: 1px solid #E0E0E0;
+  padding: 32px;
+  transition: border-color 0.2s ease;
+}
+
+@utility bento-card-hover {
+  border-color: #CCCCCC;
+}
+
+@utility bento-card-large {
+  grid-column: span 2;
+}
+
+@utility bento-card-full {
+  grid-column: 1 / -1;
+}
 
 @layer utilities {
   /* Constrain long-form copy to a comfortable measure. */
@@ -273,7 +316,7 @@
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -281,18 +324,31 @@
   }
 }
 
+/* Logo Marquee Animation */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+}
+
+.logo-marquee-item {
+  filter: grayscale(100%) contrast(120%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
-  .rise,
-  .rise-2,
-  .rise-3 {
+  .rise, .rise-2, .rise-3 {
     animation: none;
   }
-  *,
-  *::before,
-  *::after {
+  .animate-marquee {
+    animation: none;
+  }
+  *, *::before, *::after {
     transition-duration: 0.001ms !important;
     animation-duration: 0.001ms !important;
     scroll-behavior: auto !important;

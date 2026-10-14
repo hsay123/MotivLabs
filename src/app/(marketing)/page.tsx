@@ -5,7 +5,9 @@ import { CapabilitySection } from "@/components/marketing/CapabilitySection";
 import { CredibilityStrip } from "@/components/marketing/CredibilityStrip";
 import { Faq } from "@/components/marketing/Faq";
 import { FinalCta } from "@/components/marketing/FinalCta";
+import { FeatureBento } from "@/components/marketing/FeatureBento";
 import { Hero } from "@/components/marketing/Hero";
+import { LogoMarquee } from "@/components/marketing/LogoMarquee";
 import { ProductShowcase } from "@/components/marketing/ProductShowcase";
 import { TrustProvenance } from "@/components/marketing/TrustProvenance";
 import { UseCases } from "@/components/marketing/UseCases";
@@ -30,7 +32,13 @@ export default function HomePage() {
   return (
     <>
       <Hero />
-      <CredibilityStrip />
+      <LogoMarquee />
+      {/* Legacy Workflow Coverage section - hidden via CSS */}
+      <div className="hidden">
+        <CredibilityStrip />
+      </div>
+      {/* New Bento Box feature section with video */}
+      <FeatureBento />
       <CapabilityIntro />
       {capabilities.map((capability, index) => (
         <CapabilitySection
