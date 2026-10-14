@@ -243,8 +243,17 @@ export function CapabilityIntro() {
             </div>
 
             {/* Workflow Media — D1.png */}
+            {/* Layer 2: sits above the grid (z-0), accent line/video (z-1),
+                gradient overlay (z-2) and particle layer (z-3), so no
+                decorative layer can wash out the illustration. */}
             <div
-              className="hidden lg:block absolute right-0 top-1/2 -translate-y-1/2 w-[50%] max-w-[600px] h-[70%] min-h-[400px] pointer-events-none"
+              className="hidden lg:block absolute right-0 top-1/2 -translate-y-1/2 w-[50%] max-w-[600px] h-[70%] min-h-[400px] pointer-events-none z-[5]"
+              style={{
+                opacity: 1,
+                filter: 'none',
+                mixBlendMode: 'normal',
+                isolation: 'isolate',
+              }}
               aria-label="Workflow media"
             >
               <div className="absolute inset-0 flex items-center justify-center">
@@ -253,6 +262,16 @@ export function CapabilityIntro() {
                   alt="Zeno workflow visualization"
                   fill
                   className="object-contain"
+                  style={{
+                    opacity: 1,
+                    filter: 'none',
+                    mixBlendMode: 'normal',
+                    objectFit: 'contain',
+                    objectPosition: 'center',
+                    width: '100%',
+                    height: '100%',
+                    display: 'block',
+                  }}
                   priority
                   sizes="(max-width: 768px) 100vw, 50vw"
                 />
