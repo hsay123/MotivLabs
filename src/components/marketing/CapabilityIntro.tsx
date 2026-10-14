@@ -1,25 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import { capabilityIntro } from "@/lib/content/landing";
 import { Container } from "@/components/ui/Container";
 import { Section } from "@/components/ui/Section";
 import { Eyebrow } from "@/components/ui/SectionHeading";
 import { BentoCard } from "@/components/ui/BentoCard";
 
-// Dynamically import the 3D component to avoid SSR issues
-const LidarPointCloud = dynamic(
-  () => import("@/components/marketing/LidarPointCloud").then((mod) => mod.LidarPointCloud),
-  { ssr: false, loading: () => null }
-);
-
 /**
- * Capability Introduction — Zeno Premium Motion Design with 3D LiDAR Visualization.
+ * Capability Introduction — Zeno Premium Motion Design.
  *
  * Large full-width feature card with animated WebM background,
- * interactive 3D LiDAR point cloud, scroll-revealed workflow stages,
- * and subtle data-flow motion. Followed by a 2-column grid of feature cards.
+ * scroll-revealed workflow stages, and subtle data-flow motion.
+ * Followed by a 2-column grid of feature cards.
  */
 export function CapabilityIntro() {
   const [isInView, setIsInView] = useState(false);
@@ -67,7 +60,7 @@ export function CapabilityIntro() {
 
         {/* Bento Grid — Full width featured card + 2 column grid */}
         <div className="grid gap-6 lg:gap-8 lg:grid-cols-2">
-          {/* Large Featured Card - Full Width with Animated Background & 3D LiDAR */}
+          {/* Large Featured Card - Full Width with Animated Background */}
           <div
             ref={sectionRef}
             className="bento-card lg:col-span-2 relative overflow-hidden bg-[#F8F9FA] border border-[#E5E7EB] p-8 lg:p-12 lg:px-16"
@@ -128,23 +121,9 @@ export function CapabilityIntro() {
               </video>
             )}
 
-            {/* 3D LiDAR Point Cloud — Right Side (Desktop Only) */}
+            {/* Subtle Gradient Overlay for Text Contrast — Full width */}
             <div
-              className="hidden lg:block absolute right-0 top-1/2 -translate-y-1/2 w-[50%] max-w-[600px] h-[70%] min-h-[400px] pointer-events-none z-[2]"
-              style={{
-                opacity: prefersReducedMotion ? 0 : 1,
-              }}
-              aria-hidden="true"
-            >
-              <LidarPointCloud
-                isInView={isInView}
-                prefersReducedMotion={prefersReducedMotion}
-              />
-            </div>
-
-            {/* Subtle Gradient Overlay for Text Contrast */}
-            <div
-              className="absolute inset-0 pointer-events-none z-[3]"
+              className="absolute inset-0 pointer-events-none z-[2]"
               style={{
                 background: 'linear-gradient(270deg, rgba(248,249,250,0.98) 0%, rgba(248,249,250,0.8) 35%, rgba(248,249,250,0.3) 55%, transparent 100%)',
                 borderRadius: '24px',
@@ -189,7 +168,7 @@ export function CapabilityIntro() {
             )}
 
             {/* Foreground Content Container */}
-            <div className="relative z-10 max-w-[680px] lg:max-w-[580px]">
+            <div className="relative z-10 max-w-[680px]">
               {/* Tag Line */}
               <div style={{ opacity: isInView ? 1 : 0, transform: isInView ? 'translateY(0)' : 'translateY(10px)', transition: 'all 0.6s ease-out 0.1s' }}>
                 <Eyebrow className="text-[#CCFF00] text-eyebrow tracking-[0.08em] mb-2">
@@ -258,6 +237,23 @@ export function CapabilityIntro() {
                 </svg>
                 <div className="text-sm text-[#475569]">
                   <span className="font-semibold text-[#0F172A]">Traceable by design:</span> schema version · review decision · recorded receipt
+                </div>
+              </div>
+            </div>
+
+            {/* Media placeholder container for future image/video on the right side */}
+            <div
+              className="hidden lg:block absolute right-0 top-1/2 -translate-y-1/2 w-[50%] max-w-[600px] h-[70%] min-h-[400px] pointer-events-none"
+              style={{ opacity: 0.03 }}
+              aria-label="Workflow media placeholder"
+            >
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center text-[#9CA3AF] text-sm px-8">
+                  <svg className="mx-auto mb-2 h-8 w-8 text-[#CCFF00]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p>Workflow media placeholder</p>
+                  <p className="text-xs mt-1">Future image or video asset</p>
                 </div>
               </div>
             </div>
