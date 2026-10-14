@@ -46,6 +46,9 @@ jobs:
           
           echo "Deployments fetched successfully"
           
+          # Debug: show structure of first deployment
+          echo "$DEPLOYMENTS" | jq '.deployments[0] | {url, target, readyState, "meta.githubCommitRef": .meta.githubCommitRef, createdAt}' 2>/dev/null || echo "Debug failed"
+          
           # Parse JSON - Vercel returns object with deployments array
           DEPLOYMENT_URL=$(echo "$DEPLOYMENTS" | jq -r '
             .deployments
@@ -55,6 +58,8 @@ jobs:
           
           if [ -z "$DEPLOYMENT_URL" ] || [ "$DEPLOYMENT_URL" = "null" ]; then
             echo "::error::No READY frontend Preview deployment found for release/rc-integration branch"
+            echo "All preview deployments:"
+            echo "$DEPLOYMENTS" | jq -r '.deployments[] | select(.target=="preview") | "\(.url) readyState=\(.readyState) ref=\(.meta.githubCommitRef) created=\(.createdAt)"'
             exit 1
           fi
           
@@ -76,6 +81,9 @@ jobs:
           
           echo "Deployments fetched successfully"
           
+          # Debug: show structure of first deployment
+          echo "$DEPLOYMENTS" | jq '.deployments[0] | {url, target, readyState, "meta.githubCommitRef": .meta.githubCommitRef, createdAt}' 2>/dev/null || echo "Debug failed"
+          
           # Parse JSON - Vercel returns object with deployments array
           DEPLOYMENT_URL=$(echo "$DEPLOYMENTS" | jq -r '
             .deployments
@@ -85,6 +93,8 @@ jobs:
           
           if [ -z "$DEPLOYMENT_URL" ] || [ "$DEPLOYMENT_URL" = "null" ]; then
             echo "::error::No READY backend Preview deployment found for release/rc-integration branch"
+            echo "All preview deployments:"
+            echo "$DEPLOYMENTS" | jq -r '.deployments[] | select(.target=="preview") | "\(.url) readyState=\(.readyState) ref=\(.meta.githubCommitRef) created=\(.createdAt)"'
             exit 1
           fi
           
