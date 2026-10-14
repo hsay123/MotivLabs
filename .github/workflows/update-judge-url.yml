@@ -112,6 +112,37 @@ jobs:
           echo "Found backend deployment: $DEPLOYMENT_URL"
           echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
 
+      - name: Wait for frontend deployment to be ready
+        run: |
+          FRONTEND_URL="${{ steps.frontend-deployment.outputs.deployment_url }}"
+          echo "Waiting for frontend deployment to be ready: $FRONTEND_URL"
+          
+          # Extract deployment hostname from URL
+          DEPLOYMENT_HOST=$(echo "$FRONTEND_URL" | sed 's|https://||')
+          
+          # Wait for deployment to be ready (max 10 minutes)
+          for i in {1..60}; do
+            STATUS=$(vercel inspect "$DEPLOYMENT_HOST" --scope=yashlandge150-gmailcoms-projects --token=${{ secrets.VERCEL_TOKEN }} --json 2>/dev/null | jq -r '.readyState // "UNKNOWN"')
+            echo "Deployment status: $STATUS (attempt $i/60)"
+            
+            if [ "$STATUS" = "READY" ]; then
+              echo "Deployment is READY"
+              break
+            fi
+            
+            if [ "$STATUS" = "ERROR" ] || [ "$STATUS" = "CANCELED" ]; then
+              echo "::error::Deployment failed with status: $STATUS"
+              exit 1
+            fi
+            
+            sleep 10
+          done
+          
+          if [ "$STATUS" != "READY" ]; then
+            echo "::error::Deployment did not become ready within 10 minutes"
+            exit 1
+          fi
+
       - name: Verify backend health
         run: |
           BACKEND_URL="${{ steps.backend-deployment.outputs.deployment_url }}"
