@@ -30,6 +30,13 @@ export function toJob(row: JobRow): Job {
     label_list: (row.label_list as string[]) ?? [],
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
+    // Funding fields
+    funding_status: row.funding_status as Job["funding_status"],
+    funded_amount: (row.funded_amount as string | null) ?? null,
+    funding_tx_hash: (row.funding_tx_hash as string | null) ?? null,
+    funding_wallet_address: (row.funding_wallet_address as string | null) ?? null,
+    funded_at: (row.funded_at as string | null) ?? null,
+    is_demo: (row.is_demo as boolean) ?? false,
   };
 }
 

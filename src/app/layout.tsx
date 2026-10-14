@@ -25,7 +25,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://motivelabs.example"),
+  metadataBase: new URL("https://zeno-web-app.vercel.app"),
   title: {
     default: "Zeno — The data infrastructure for intelligent machines",
     template: "%s · Zeno",
@@ -33,6 +33,18 @@ export const metadata: Metadata = {
   description:
     "Zeno turns rights-cleared image and video data into structured, reviewed annotation and training-ready datasets, with versioned records and traceable provenance.",
   applicationName: "Zeno",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48 32x32" },
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-48.png", sizes: "48x48", type: "image/png" },
+      { url: "/favicon-64.png", sizes: "64x64", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: "/favicon.ico",
+  },
+  manifest: "/site.webmanifest",
   openGraph: {
     title: "Zeno — The data infrastructure for intelligent machines",
     description:

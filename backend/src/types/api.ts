@@ -1,5 +1,5 @@
 /**
- * API TypeScript types – derived from zod schemas.
+ * API TypeScript types – backend contract.
  * Frontend teammates can copy or import this file.
  *
  * Every API response is wrapped in:
@@ -112,6 +112,8 @@ export interface ContributorProfile {
   tasks_completed: number;
   consent_version: string | null;
   consented_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Project {
@@ -139,6 +141,7 @@ export interface SchemaVersion {
   id: string;
   modality: Modality;
   schema_name: string;
+  json_schema: Record<string, unknown>;
   label_list: string[];
   version_hash: string;
   created_at: string;
@@ -162,6 +165,13 @@ export interface Job {
   label_list: string[];
   created_at: string;
   updated_at: string;
+  // Funding fields
+  funding_status: "unfunded" | "pending" | "funded" | "failed";
+  funded_amount: string | null;
+  funding_tx_hash: string | null;
+  funding_wallet_address: string | null;
+  funded_at: string | null;
+  is_demo: boolean;
 }
 
 export interface Task {
@@ -179,6 +189,7 @@ export interface Task {
   signed_media_url?: string;
   created_at: string;
   updated_at: string;
+  is_demo: boolean;
   // Note: gold_answer is never returned to contributors
 }
 
@@ -389,10 +400,15 @@ export interface EarningsSummary {
     status: TaskStatus;
     reward: string;
     submitted_at: string;
-    /** Payout receipt id, or null when the task is not settled yet. */
     receipt_id: string | null;
-    /** Whether the recorded payout is a mock settlement (never on-chain). */
     settlement_is_mock: boolean | null;
     tx_hash: string | null;
   }>;
 }
+
+export interface UploadUrlResult {
+  upload_url: string;
+  object_key: string;
+}
+
+// All types are defined as interfaces above.

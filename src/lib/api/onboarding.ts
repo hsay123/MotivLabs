@@ -6,7 +6,6 @@
  * "Contributor clears the form but never calls the API" bugs are covered by
  * plain logic tests instead of only by a browser.
  */
-
 import { workspaceRoles, type WorkspaceRole } from "@/lib/content/workspace";
 import {
   onboardingCompleteResponseSchema,
@@ -118,7 +117,7 @@ export type OnboardingSubmitClient = Pick<PlatformClient, "post">;
  */
 export async function submitOnboarding(
   client: OnboardingSubmitClient,
-  choice: { account_type: OnboardingAccountType; organization_name?: string },
+  choice: { account_type: OnboardingAccountType; organization_name?: string; wallet_address?: string },
 ): Promise<OnboardingSubmitOutcome> {
   const organizationName =
     choice.account_type === "buyer" ? choice.organization_name?.trim() : undefined;
@@ -126,6 +125,14 @@ export async function submitOnboarding(
   if (choice.account_type === "buyer") {
     const issue = orgNameIssue(organizationName);
     if (issue) return { status: "error", message: issue };
+  }
+
+  // Both buyers and contributors must provide a wallet address
+  if (!choice.wallet_address) {
+    return { status: "error", message: `wallet_address is required for ${choice.account_type === "buyer" ? "funding" : "payouts"}` };
+  }
+  if (!/^0x[0-9a-fA-F]{40}$/.test(choice.wallet_address)) {
+    return { status: "error", message: "wallet_address must be a valid Ethereum address (0x...)" };
   }
 
   try {
@@ -136,6 +143,7 @@ export async function submitOnboarding(
         body: {
           account_type: choice.account_type,
           ...(organizationName ? { organization_name: organizationName } : {}),
+          wallet_address: choice.wallet_address,
         },
       },
     );
@@ -174,3 +182,4 @@ export function createSubmitGuard() {
     },
   };
 }
+

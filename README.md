@@ -16,6 +16,8 @@ Served over **HTTPS on `localhost:3000`** in development (external-wallet SIWE r
 it); the backend listens on `:3010`. Operational detail lives in
 [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 
+**Official Judge URL (hosted demo):** `https://zeno-web-app.vercel.app`
+
 ## Getting started
 
 Prerequisites: Node, and a filled-in `backend/.env.local` + root `.env.local`

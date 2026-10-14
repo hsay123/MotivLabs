@@ -1,40 +1,35 @@
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils/cn";
 
 /**
- * Temporary brand mark.
+ * Official Zeno logo component.
  *
- * The final logo has not been supplied, so this is an intentional
- * text-based wordmark with a simple geometric glyph. Replace
- * `WordmarkGlyph` and the wordmark styling when the real logo lands —
- * nothing else depends on its internals.
+ * Uses the official Zeno logo asset. The logo contains the icon and wordmark
+ * together. When used in the header, we display the logo icon alongside the
+ * "Zeno" text for consistency with the existing design system.
  */
 export function WordmarkGlyph({
   className,
-  tone = "light",
 }: {
   className?: string;
-  tone?: "light" | "dark";
 }) {
   return (
     <span
       aria-hidden
       className={cn(
-        "relative flex h-7 w-7 items-center justify-center rounded-[9px]",
-        tone === "dark" ? "bg-white" : "bg-accent-600",
+        "relative flex h-7 w-auto items-center justify-center",
         className,
       )}
     >
-      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
-        <path
-          d="M4 17.5 10 7l4 6.5L20 6"
-          stroke={tone === "dark" ? "#6547e4" : "#ffffff"}
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="20" cy="6" r="2" fill={tone === "dark" ? "#6547e4" : "#ffffff"} />
-      </svg>
+      <Image
+        src="/zeno-logo.png"
+        alt=""
+        aria-hidden="true"
+        className="h-7 w-auto object-contain"
+        width={28}
+        height={28}
+      />
     </span>
   );
 }
@@ -42,7 +37,7 @@ export function WordmarkGlyph({
 export function Wordmark({
   tone = "light",
   className,
-  href = "/",
+  href = "/workspace",
 }: {
   tone?: "light" | "dark";
   className?: string;
@@ -57,7 +52,7 @@ export function Wordmark({
         className,
       )}
     >
-      <WordmarkGlyph tone={tone} />
+      <WordmarkGlyph />
       <span
         className={cn(
           "font-display text-[1.0625rem] font-medium tracking-[-0.02em]",
