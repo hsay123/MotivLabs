@@ -11,7 +11,7 @@ export function SiteFooter() {
       <Container size="default" className="py-14 sm:py-16">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,2fr)]">
           <div className="max-w-sm">
-            <Wordmark tone="light" />
+            <Wordmark tone="light" href="/" />
             <p className="mt-4 text-body-sm text-[#666666]">{brand.tagline}</p>
             <p className="mt-6 max-w-xs text-caption text-[#999999]">
               Zeno is currently in a pilot stage. Nothing on this site
@@ -23,7 +23,7 @@ export function SiteFooter() {
           <nav aria-label="Footer" className="grid grid-cols-2 gap-8 sm:grid-cols-4">
             {footerColumns.map((column) => (
               <div key={column.heading}>
-                <h2 className="text-body-sm font-medium text-[#000000]">{column.heading}</h2>
+                <h2 className="text-body-sm font-semibold text-[#000000]">{column.heading}</h2>
                 <ul className="mt-3 space-y-2">
                   {column.links.map((link) => (
                     <li key={link.href}>

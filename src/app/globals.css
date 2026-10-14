@@ -5,6 +5,7 @@
   ------------------------------------------------------------------
   High-contrast, dynamic aesthetic: Pure White, Pure Black, Bright Lime Green.
   Clean geometric sans-serif (Inter), bold weights, tight letter-spacing.
+  Bento Box grid system for feature cards.
 */
 
 @theme {
@@ -114,9 +115,9 @@
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+  --radius-lg: 16px;       /* Bento box radius */
+  --radius-xl: 24px;       /* Large bento box radius */
+  --radius-2xl: 32px;
 
   /* ---- Motion ------------------------------------------------------ */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -234,7 +235,7 @@
     background-color: #CCFF00;
     color: #000000;
     font-weight: 600;
-    border-radius: 6px;
+    border-radius: 8px;
     transition: background-color 0.15s ease, transform 0.1s ease;
   }
   .btn-primary-encord:hover {
@@ -245,6 +246,42 @@
     background-color: #A3CC00;
     transform: translateY(0);
   }
+
+  /* Lime Green Text Link (Encord style) */
+  .link-lime {
+    color: #CCFF00;
+    font-weight: 500;
+    transition: color 0.15s ease;
+  }
+  .link-lime:hover {
+    color: #B8E600;
+  }
+
+  /* Logo Marquee Item - grayscale filter for monochrome logos */
+  .logo-marquee-item {
+    filter: grayscale(100%) contrast(120%);
+  }
+}
+
+/* Bento Box Card - Encord Style (as utility for Tailwind v4) */
+@utility bento-card {
+  background-color: #F9F9FA;
+  border-radius: 24px;
+  border: 1px solid #E0E0E0;
+  padding: 32px;
+  transition: border-color 0.2s ease;
+}
+
+@utility bento-card-hover {
+  border-color: #CCCCCC;
+}
+
+@utility bento-card-large {
+  grid-column: span 2;
+}
+
+@utility bento-card-full {
+  grid-column: 1 / -1;
 }
 
 @layer utilities {
@@ -287,11 +324,28 @@
   }
 }
 
+/* Logo Marquee Animation */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+}
+
+.logo-marquee-item {
+  filter: grayscale(100%) contrast(120%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
   .rise, .rise-2, .rise-3 {
+    animation: none;
+  }
+  .animate-marquee {
     animation: none;
   }
   *, *::before, *::after {

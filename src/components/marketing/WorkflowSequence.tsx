@@ -1,70 +1,64 @@
 import { workflow } from "@/lib/content/landing";
-import { Badge } from "@/components/ui/Badge";
 import { Container } from "@/components/ui/Container";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { BentoCard } from "@/components/ui/BentoCard";
 
 /**
- * Unified workflow.
+ * Unified workflow — Encord Bento Box Style.
  *
- * A single rail with five nodes: horizontal on desktop, vertical on
- * mobile. The connecting line is static — no animated connectors, no
- * repeated card chrome — so the sequence reads in one pass.
+ * Three-column bento grid where each step is a unified card with
+ * light gray background, icon/number at the top, and text at the bottom.
  */
 export function WorkflowSequence() {
   return (
-    <Section tone="muted" spacing="default" contained={false}>
-      <Container size="default">
-        <SectionHeading
-          eyebrow={workflow.eyebrow}
-          title={workflow.heading}
-          description={workflow.support}
-        />
+    <Section tone="canvas" spacing="default" contained={false}>
+      <div className="mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-10">
+        {/* Section Header */}
+        <div className="text-center mb-16 lg:mb-24 max-w-3xl mx-auto">
+          <p className="eyebrow justify-center text-[#666666]">
+            <span aria-hidden className="inline-block h-1 w-1 rounded-full bg-[#CCFF00]" />
+            {workflow.eyebrow}
+          </p>
+          <h2 className="mt-6 text-display-lg text-[#000000] font-bold tracking-[-0.04em] leading-[1.0] max-w-2xl mx-auto">
+            {workflow.heading}
+          </h2>
+          <p className="mt-6 text-body-lg text-[#333333] max-w-2xl mx-auto leading-relaxed">
+            {workflow.support}
+          </p>
+        </div>
 
-        {/* ---- Desktop: horizontal rail ---------------------------- */}
-        <ol className="relative mt-14 hidden lg:grid lg:grid-cols-5">
-          <div
-            aria-hidden
-            className="absolute left-0 right-0 top-[13px] h-px bg-line-strong"
-          />
+        {/* Bento Grid - 3 Column Layout */}
+        <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-3 max-w-[1400px] mx-auto">
           {workflow.steps.map((step, index) => (
-            <li key={step.id} className="relative pr-6 last:pr-0">
-              <div className="flex items-center gap-3">
-                <span className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full border border-line-strong bg-surface font-mono text-[11px] font-medium text-ink-2 tnum">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-              </div>
-              <h3 className="mt-4 font-display text-title text-ink">{step.label}</h3>
-              <p className="mt-2 text-body-sm text-ink-3">{step.detail}</p>
-              <div className="mt-3">
-                <Badge tone="outline">{step.state}</Badge>
-              </div>
-            </li>
-          ))}
-        </ol>
-
-        {/* ---- Mobile: vertical flow ------------------------------- */}
-        <ol className="relative mt-10 lg:hidden">
-          <div
-            aria-hidden
-            className="absolute bottom-3 left-[13px] top-3 w-px bg-line-strong"
-          />
-          {workflow.steps.map((step, index) => (
-            <li key={step.id} className="relative flex gap-4 pb-8 last:pb-0">
-              <span className="relative z-10 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line-strong bg-surface font-mono text-[11px] font-medium text-ink-2 tnum">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <div className="min-w-0">
-                <h3 className="font-display text-title text-ink">{step.label}</h3>
-                <p className="mt-1.5 text-body-sm text-ink-3">{step.detail}</p>
-                <div className="mt-2.5">
-                  <Badge tone="outline">{step.state}</Badge>
+            <div
+              key={step.id}
+              className="bento-card flex flex-col min-h-[380px]"
+            >
+              <div className="flex flex-col h-full">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-6">
+                    <span className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-[#E0E0E0] bg-white font-mono text-base font-semibold text-[#333333] tnum">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                  </div>
+                  <h3 className="text-2xl lg:text-3xl font-bold text-[#000000] tracking-[-0.02em] mb-4">
+                    {step.label}
+                  </h3>
+                  <p className="text-[#333333] leading-relaxed mb-6">
+                    {step.detail}
+                  </p>
+                </div>
+                <div className="mt-auto">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E0E0E0] bg-white text-sm font-medium text-[#333333]">
+                    {step.state}
+                  </span>
                 </div>
               </div>
-            </li>
+            </div>
           ))}
-        </ol>
-      </Container>
+        </div>
+      </div>
     </Section>
   );
 }
