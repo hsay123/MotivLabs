@@ -16,11 +16,10 @@ export function CapabilityIntro() {
     <Section tone="canvas" spacing="loose" contained={false}>
       <Container size="wide">
         {/* Section Header */}
-        <div className="text-center mb-16 lg:mb-24 max-w-3xl mx-auto">
+        <div className="text-center mb-16 lg:mb-24 mx-auto">
           <Eyebrow>{capabilityIntro.eyebrow}</Eyebrow>
-          <h2 className="mt-6 text-display-lg text-[#000000] font-bold tracking-[-0.04em] leading-[1.0]">
-            {capabilityIntro.heading}
-          </h2>
+          <h2 className="mt-6 text-display-lg text-[#000000] font-bold tracking-[-0.04em] leading-[1.0] max-w-[1000px] mx-auto hyphens-none word-break-keep-all"
+              dangerouslySetInnerHTML={{ __html: capabilityIntro.heading }} />
           <p className="mt-6 text-body-lg text-[#333333] max-w-2xl mx-auto leading-relaxed">
             {capabilityIntro.support}
           </p>
@@ -40,9 +39,8 @@ export function CapabilityIntro() {
             <div className="relative z-10 p-8 lg:p-12 lg:pt-16 lg:pb-12 lg:pl-16">
               <div className="max-w-xl">
                 <Eyebrow className="text-white/80">{capabilityIntro.eyebrow}</Eyebrow>
-                <h3 className="mt-4 text-display-md text-white font-bold tracking-[-0.03em] leading-[1.05]">
-                  {capabilityIntro.heading}
-                </h3>
+                <h3 className="mt-4 text-display-md text-white font-bold tracking-[-0.03em] leading-[1.05] hyphens-none word-break-keep-all"
+                    dangerouslySetInnerHTML={{ __html: capabilityIntro.heading }} />
                 <p className="mt-4 text-body-lg text-white/90 leading-relaxed max-w-xl">
                   {capabilityIntro.support}
                 </p>
