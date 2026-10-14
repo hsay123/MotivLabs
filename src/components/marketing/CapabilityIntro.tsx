@@ -247,7 +247,7 @@ export function CapabilityIntro() {
                 gradient overlay (z-2) and particle layer (z-3), so no
                 decorative layer can wash out the illustration. */}
             <div
-              className="hidden lg:block absolute right-0 top-1/2 -translate-y-1/2 w-[50%] max-w-[600px] h-[70%] min-h-[400px] pointer-events-none z-[5]"
+              className="hidden lg:block absolute right-0 top-1/2 -translate-y-1/2 w-[50%] max-w-[600px] h-[70%] min-h-[400px] pointer-events-none z-[5] rounded-2xl overflow-hidden"
               style={{
                 opacity: 1,
                 filter: 'none',
@@ -264,7 +264,17 @@ export function CapabilityIntro() {
                   className="object-contain"
                   style={{
                     opacity: 1,
-                    filter: 'none',
+                    /* Asset is a near-white illustration on a near-white card.
+                       Tuned down from the first attempt at
+                       contrast(1.5) brightness(0.75): that lifted the panel to
+                       a muddy mid-grey (#BFBFBF) flush against the card edge.
+                       brightness() alone is used instead because it preserves
+                       ink/white ordering — contrast() clipped the lightest
+                       strokes into the background — while giving a lighter
+                       panel and slightly better separation.
+                       Applied to the image only — never the media container,
+                       background grid, heading or any other content. */
+                    filter: 'brightness(0.85)',
                     mixBlendMode: 'normal',
                     objectFit: 'contain',
                     objectPosition: 'center',
