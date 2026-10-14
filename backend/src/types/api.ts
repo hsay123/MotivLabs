@@ -1,49 +1,11 @@
 /**
- * API TypeScript types – derived from zod schemas.
+ * API TypeScript types – backend contract.
  * Frontend teammates can copy or import this file.
  *
  * Every API response is wrapped in:
  *   { data: T }       on success
  *   { error: { code: string; message: string; details?: unknown } }  on failure
  */
-
-import { z } from "zod";
-import {
-  userRoleSchema,
-  userStatusSchema,
-  modalitySchema,
-  jobStatusSchema,
-  taskStatusSchema,
-  reviewerTypeSchema,
-  decisionSchema,
-  appealStatusSchema,
-  imageBoxesPayloadSchema,
-  actionSegmentsPayloadSchema,
-  annotationPayloadSchema,
-  meProfileSchema,
-  currentUserSchema,
-  onboardingCompleteRequestSchema,
-  onboardingCompleteResponseSchema,
-  projectSchema,
-  assetSchema,
-  jobSchema,
-  taskSchema,
-  claimResultSchema,
-  draftSaveResultSchema,
-  uploadUrlResultSchema,
-  submissionSchema,
-  reviewSchema,
-  reviewQueueItemSchema,
-  appealSchema,
-  appealQueueItemSchema,
-  publicReceiptSchema,
-  adminUserSchema,
-  exportManifestSchema,
-  receiptSchema,
-  earningsSummarySchema,
-  boundingBoxSchema,
-  actionSegmentSchema,
-} from "../../../src/lib/api/platform";
 
 // ============================================================
 // Enums
@@ -449,13 +411,4 @@ export interface UploadUrlResult {
   object_key: string;
 }
 
-export function paginatedSchema<T extends z.ZodTypeAny>(item: T) {
-  return z.object({
-    items: z.array(item),
-    total: z.number(),
-    page: z.number(),
-    per_page: z.number(),
-  });
-}
-
-// All types are defined as interfaces above. No z.infer exports needed.
+// All types are defined as interfaces above.
