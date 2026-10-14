@@ -1,18 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { capabilityIntro } from "@/lib/content/landing";
 import { Container } from "@/components/ui/Container";
 import { Section } from "@/components/ui/Section";
 import { Eyebrow } from "@/components/ui/SectionHeading";
 import { BentoCard } from "@/components/ui/BentoCard";
 
+// Dynamically import the 3D component to avoid SSR issues
+const LidarPointCloud = dynamic(
+  () => import("@/components/marketing/LidarPointCloud").then((mod) => mod.LidarPointCloud),
+  { ssr: false, loading: () => null }
+);
+
 /**
- * Capability Introduction — Zeno Premium Motion Design.
+ * Capability Introduction — Zeno Premium Motion Design with 3D LiDAR Visualization.
  *
  * Large full-width feature card with animated WebM background,
- * scroll-revealed workflow stages, and subtle data-flow motion.
- * Followed by a 2-column grid of feature cards.
+ * interactive 3D LiDAR point cloud, scroll-revealed workflow stages,
+ * and subtle data-flow motion. Followed by a 2-column grid of feature cards.
  */
 export function CapabilityIntro() {
   const [isInView, setIsInView] = useState(false);
@@ -60,7 +67,7 @@ export function CapabilityIntro() {
 
         {/* Bento Grid — Full width featured card + 2 column grid */}
         <div className="grid gap-6 lg:gap-8 lg:grid-cols-2">
-          {/* Large Featured Card - Full Width with Animated Background */}
+          {/* Large Featured Card - Full Width with Animated Background & 3D LiDAR */}
           <div
             ref={sectionRef}
             className="bento-card lg:col-span-2 relative overflow-hidden bg-[#F8F9FA] border border-[#E5E7EB] p-8 lg:p-12 lg:px-16"
@@ -121,11 +128,25 @@ export function CapabilityIntro() {
               </video>
             )}
 
+            {/* 3D LiDAR Point Cloud — Right Side (Desktop Only) */}
+            <div
+              className="hidden lg:block absolute right-0 top-1/2 -translate-y-1/2 w-[50%] max-w-[600px] h-[70%] min-h-[400px] pointer-events-none z-[2]"
+              style={{
+                opacity: prefersReducedMotion ? 0 : 1,
+              }}
+              aria-hidden="true"
+            >
+              <LidarPointCloud
+                isInView={isInView}
+                prefersReducedMotion={prefersReducedMotion}
+              />
+            </div>
+
             {/* Subtle Gradient Overlay for Text Contrast */}
             <div
-              className="absolute inset-0 pointer-events-none z-[2]"
+              className="absolute inset-0 pointer-events-none z-[3]"
               style={{
-                background: 'linear-gradient(270deg, rgba(248,249,250,0.95) 0%, rgba(248,249,250,0.6) 45%, rgba(248,249,250,0.15) 65%, transparent 100%)',
+                background: 'linear-gradient(270deg, rgba(248,249,250,0.98) 0%, rgba(248,249,250,0.8) 35%, rgba(248,249,250,0.3) 55%, transparent 100%)',
                 borderRadius: '24px',
               }}
               aria-hidden="true"
@@ -168,7 +189,7 @@ export function CapabilityIntro() {
             )}
 
             {/* Foreground Content Container */}
-            <div className="relative z-10 max-w-[680px]">
+            <div className="relative z-10 max-w-[680px] lg:max-w-[580px]">
               {/* Tag Line */}
               <div style={{ opacity: isInView ? 1 : 0, transform: isInView ? 'translateY(0)' : 'translateY(10px)', transition: 'all 0.6s ease-out 0.1s' }}>
                 <Eyebrow className="text-[#CCFF00] text-eyebrow tracking-[0.08em] mb-2">
