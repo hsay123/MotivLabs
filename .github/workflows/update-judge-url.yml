@@ -5,9 +5,6 @@ on:
   push:
     branches:
       - release/rc-integration
-    paths:
-      - '.github/workflows/update-judge-url.yml'
-      - 'vercel.json'
 
 jobs:
   update-alias:
@@ -23,66 +20,121 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Verify VERCEL_TOKEN
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "::error::VERCEL_TOKEN secret is not set. Please add it to GitHub repository secrets."
+            exit 1
+          fi
+          echo "VERCEL_TOKEN is configured"
+
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
 
-      - name: Wait for deployment to be ready
-        id: wait-deployment
+      - name: Get latest READY frontend deployment for release/rc-integration
+        id: frontend-deployment
         run: |
-          echo "Waiting for Vercel deployment to complete..."
-          # Vercel deployments are triggered by GitHub push
-          # We need to wait for the deployment to be ready
-          sleep 60
+          echo "Finding latest READY frontend deployment for release/rc-integration..."
           
-          # Find the latest successful deployment for release/rc-integration
-          DEPLOYMENT=$(vercel ls zeno-web --scope=yashlandge150-gmailcoms-projects --token=${{ secrets.VERCEL_TOKEN }} --json 2>/dev/null | \
-            jq -r '.deployments[] | select(.target=="preview" and .meta.githubCommitRef=="release/rc-integration" and .readyState=="READY") | .url' | head -1)
+          # Get deployments for zeno-web project
+          DEPLOYMENTS=$(vercel ls zeno-web --scope=yashlandge150-gmailcoms-projects --token=${{ secrets.VERCEL_TOKEN }} --json 2>/dev/null)
           
-          if [ -z "$DEPLOYMENT" ] || [ "$DEPLOYMENT" = "null" ]; then
-            echo "No ready deployment found for release/rc-integration"
+          if [ -z "$DEPLOYMENTS" ] || [ "$DEPLOYMENTS" = "null" ]; then
+            echo "::error::Failed to fetch Vercel deployments for zeno-web"
             exit 1
           fi
           
-          echo "Found deployment: $DEPLOYMENT"
-          echo "deployment_url=$DEPLOYMENT" >> $GITHUB_OUTPUT
+          # Filter for READY preview deployments from release/rc-integration branch
+          DEPLOYMENT_URL=$(echo "$DEPLOYMENTS" | jq -r '
+            .deployments[]
+            | select(.target=="preview" and .readyState=="READY" and .meta.githubCommitRef=="release/rc-integration")
+            | .url
+          ' | head -1)
+          
+          if [ -z "$DEPLOYMENT_URL" ] || [ "$DEPLOYMENT_URL" = "null" ]; then
+            echo "::error::No READY frontend Preview deployment found for release/rc-integration branch"
+            exit 1
+          fi
+          
+          echo "Found frontend deployment: $DEPLOYMENT_URL"
+          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
 
-      - name: Verify backend deployment
-        id: verify-backend
+      - name: Get latest READY backend deployment for release/rc-integration
+        id: backend-deployment
         run: |
-          BACKEND_DEPLOYMENT=$(vercel ls zeno-api --scope=yashlandge150-gmailcoms-projects --token=${{ secrets.VERCEL_TOKEN }} --json 2>/dev/null | \
-            jq -r '.deployments[] | select(.target=="preview" and .meta.githubCommitRef=="release/rc-integration" and .readyState=="READY") | .url' | head -1)
+          echo "Finding latest READY backend deployment for release/rc-integration..."
           
-          if [ -z "$BACKEND_DEPLOYMENT" ] || [ "$BACKEND_DEPLOYMENT" = "null" ]; then
-            echo "No ready backend deployment found for release/rc-integration"
+          # Get deployments for zeno-api project
+          DEPLOYMENTS=$(vercel ls zeno-api --scope=yashlandge150-gmailcoms-projects --token=${{ secrets.VERCEL_TOKEN }} --json 2>/dev/null)
+          
+          if [ -z "$DEPLOYMENTS" ] || [ "$DEPLOYMENTS" = "null" ]; then
+            echo "::error::Failed to fetch Vercel deployments for zeno-api"
             exit 1
           fi
           
-          echo "Found backend deployment: $BACKEND_DEPLOYMENT"
-          echo "backend_url=$BACKEND_DEPLOYMENT" >> $GITHUB_OUTPUT
+          # Filter for READY preview deployments from release/rc-integration branch
+          DEPLOYMENT_URL=$(echo "$DEPLOYMENTS" | jq -r '
+            .deployments[]
+            | select(.target=="preview" and .readyState=="READY" and .meta.githubCommitRef=="release/rc-integration")
+            | .url
+          ' | head -1)
+          
+          if [ -z "$DEPLOYMENT_URL" ] || [ "$DEPLOYMENT_URL" = "null" ]; then
+            echo "::error::No READY backend Preview deployment found for release/rc-integration branch"
+            exit 1
+          fi
+          
+          echo "Found backend deployment: $DEPLOYMENT_URL"
+          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
 
       - name: Verify backend health
         run: |
-          HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.verify-backend.outputs.backend_url }}/api/health")
+          BACKEND_URL="${{ steps.backend-deployment.outputs.deployment_url }}"
+          echo "Checking backend health at: $BACKEND_URL/api/health"
+          
+          HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "$BACKEND_URL/api/health")
           if [ "$HEALTH" != "200" ]; then
-            echo "Backend health check failed: $HEALTH"
+            echo "::error::Backend health check failed: HTTP $HEALTH"
             exit 1
           fi
-          echo "Backend health check passed"
+          
+          # Also verify settlement preflight endpoint exists (requires auth, so 401 is expected)
+          PREFLIGHT=$(curl -s -o /dev/null -w "%{http_code}" "$BACKEND_URL/api/settlement/preflight")
+          if [ "$PREFLIGHT" != "401" ]; then
+            echo "::warning::Settlement preflight returned HTTP $PREFLIGHT (expected 401 without auth)"
+          fi
+          
+          echo "Backend health check passed (HTTP 200)"
 
       - name: Update judge URL alias
         run: |
-          vercel alias set ${{ steps.wait-deployment.outputs.deployment_url }} zeno-web-app.vercel.app \
+          FRONTEND_URL="${{ steps.frontend-deployment.outputs.deployment_url }}"
+          echo "Updating zeno-web-app.vercel.app to point to: $FRONTEND_URL"
+          
+          vercel alias set "$FRONTEND_URL" zeno-web-app.vercel.app \
             --scope=yashlandge150-gmailcoms-projects \
             --token=${{ secrets.VERCEL_TOKEN }}
           
-          echo "Successfully updated zeno-web-app.vercel.app to ${{ steps.wait-deployment.outputs.deployment_url }}"
+          echo "Alias update command executed successfully"
 
-      - name: Verify alias
+      - name: Verify judge URL alias
         run: |
-          sleep 10
-          HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "https://zeno-web-app.vercel.app/platform/api/health")
-          if [ "$HEALTH" != "200" ]; then
-            echo "Judge URL health check failed after alias update: $HEALTH"
+          echo "Waiting for alias to propagate..."
+          sleep 15
+          
+          echo "Checking https://zeno-web-app.vercel.app/"
+          ROOT_HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "https://zeno-web-app.vercel.app/")
+          if [ "$ROOT_HEALTH" != "200" ]; then
+            echo "::error::Judge URL root check failed: HTTP $ROOT_HEALTH"
             exit 1
           fi
-          echo "Judge URL health check passed"
+          
+          echo "Checking https://zeno-web-app.vercel.app/platform/api/health"
+          PLATFORM_HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "https://zeno-web-app.vercel.app/platform/api/health")
+          if [ "$PLATFORM_HEALTH" != "200" ]; then
+            echo "::error::Judge URL platform health check failed: HTTP $PLATFORM_HEALTH"
+            exit 1
+          fi
+          
+          echo "Judge URL health checks passed (both endpoints return HTTP 200)"
+          echo "✅ zeno-web-app.vercel.app now points to the latest release/rc-integration deployment"
