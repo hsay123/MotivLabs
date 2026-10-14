@@ -23,7 +23,7 @@ export function LogoMarquee() {
   const duplicatedLogos = [...logos, ...logos];
 
   return (
-    <section className="bg-white py-2 lg:py-3 mt-0 lg:mt-2" style={{ marginTop: '0px', paddingTop: '0.5rem !important' }} aria-label="Customer logos">
+    <section className="bg-white py-2 lg:py-3" style={{ marginTop: '1rem !important', paddingTop: '0px !important' }} aria-label="Customer logos">
       <div className="mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-10">
         <div className="overflow-hidden">
           <div className="flex items-center gap-8 lg:gap-12 whitespace-nowrap animate-marquee">

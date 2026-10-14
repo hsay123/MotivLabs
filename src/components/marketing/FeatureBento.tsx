@@ -5,10 +5,11 @@
  *
  * Full-width bento card with embedded video on left, text and CTA on right.
  * Responsive: 2-column grid on desktop, stacked on mobile.
+ * Pushed below the fold with large top margin.
  */
 export function FeatureBento() {
   return (
-    <section className="bg-white py-16 lg:py-24">
+    <section className="bg-white py-16 lg:py-24" style={{ marginTop: '10rem !important' }}>
       <div className="mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-10">
         {/* Section Header */}
         <div className="mx-auto max-w-3xl text-center mb-16 lg:mb-20">

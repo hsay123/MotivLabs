@@ -9,10 +9,11 @@ import { ButtonLink } from "@/components/ui/Button";
  * Constrained container with rounded corners, video background,
  * dark overlay, and centered content with single Lime Green CTA.
  * Optimized height to fit above the fold with logo marquee visible.
+ * Added top spacing for breathing room below navbar.
  */
 export function Hero() {
   return (
-    <section className="relative overflow-hidden pb-2 pt-2 sm:pb-4 sm:pt-4 lg:pb-6 lg:pt-4" style={{ marginBottom: '1rem !important' }}>
+    <section className="relative overflow-hidden pb-2 pt-2 sm:pb-4 sm:pt-4 lg:pb-6 lg:pt-4" style={{ marginBottom: '1rem !important', paddingTop: '2.5rem !important' }}>
       {/* Constrained Hero Container with Rounded Corners — Fixed Height for Above-Fold */}
       <div className="relative z-10 mx-auto max-w-[1400px] rounded-2xl overflow-hidden bg-black max-h-[560px]">
         {/* Video Background */}
