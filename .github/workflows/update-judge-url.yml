@@ -31,10 +31,10 @@ jobs:
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
 
-      - name: Get latest READY frontend deployment for release/rc-integration
+      - name: Get latest frontend deployment for release/rc-integration
         id: frontend-deployment
         run: |
-          echo "Finding latest READY frontend deployment for release/rc-integration..."
+          echo "Finding latest frontend deployment for release/rc-integration..."
           
           # Get deployments for zeno-web project, suppress telemetry notice
           DEPLOYMENTS=$(VERCEL_TELEMETRY_DISABLE=1 vercel ls zeno-web --scope=yashlandge150-gmailcoms-projects --token=${{ secrets.VERCEL_TOKEN }} --json 2>/dev/null)
@@ -64,13 +64,18 @@ jobs:
             exit 1
           fi
           
+          # Ensure URL has https:// prefix
+          if [[ "$DEPLOYMENT_URL" != https://* ]]; then
+            DEPLOYMENT_URL="https://$DEPLOYMENT_URL"
+          fi
+          
           echo "Found frontend deployment: $DEPLOYMENT_URL"
           echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
 
-      - name: Get latest READY backend deployment for release/rc-integration
+      - name: Get latest backend deployment for release/rc-integration
         id: backend-deployment
         run: |
-          echo "Finding latest READY backend deployment for release/rc-integration..."
+          echo "Finding latest backend deployment for release/rc-integration..."
           
           # Get deployments for zeno-api project
           DEPLOYMENTS=$(VERCEL_TELEMETRY_DISABLE=1 vercel ls zeno-api --scope=yashlandge150-gmailcoms-projects --token=${{ secrets.VERCEL_TOKEN }} --json 2>/dev/null)
@@ -97,6 +102,11 @@ jobs:
             echo "All deployments:"
             echo "$DEPLOYMENTS" | jq -r '.deployments[] | "\(.url) target=\(.target) readyState=\(.readyState) ref=\(.meta.githubCommitRef) created=\(.createdAt)"'
             exit 1
+          fi
+          
+          # Ensure URL has https:// prefix
+          if [[ "$DEPLOYMENT_URL" != https://* ]]; then
+            DEPLOYMENT_URL="https://$DEPLOYMENT_URL"
           fi
           
           echo "Found backend deployment: $DEPLOYMENT_URL"
