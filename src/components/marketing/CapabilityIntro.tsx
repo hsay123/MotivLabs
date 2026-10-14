@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { capabilityIntro } from "@/lib/content/landing";
 import { Container } from "@/components/ui/Container";
 import { Section } from "@/components/ui/Section";
@@ -121,11 +122,11 @@ export function CapabilityIntro() {
               </video>
             )}
 
-            {/* Subtle Gradient Overlay for Text Contrast */}
+            {/* Subtle Gradient Overlay for Text Contrast — Full width */}
             <div
               className="absolute inset-0 pointer-events-none z-[2]"
               style={{
-                background: 'linear-gradient(270deg, rgba(248,249,250,0.95) 0%, rgba(248,249,250,0.6) 45%, rgba(248,249,250,0.15) 65%, transparent 100%)',
+                background: 'linear-gradient(270deg, rgba(248,249,250,0.98) 0%, rgba(248,249,250,0.8) 35%, rgba(248,249,250,0.3) 55%, transparent 100%)',
                 borderRadius: '24px',
               }}
               aria-hidden="true"
@@ -238,6 +239,23 @@ export function CapabilityIntro() {
                 <div className="text-sm text-[#475569]">
                   <span className="font-semibold text-[#0F172A]">Traceable by design:</span> schema version · review decision · recorded receipt
                 </div>
+              </div>
+            </div>
+
+            {/* Workflow Media — D1.png */}
+            <div
+              className="hidden lg:block absolute right-0 top-1/2 -translate-y-1/2 w-[50%] max-w-[600px] h-[70%] min-h-[400px] pointer-events-none"
+              aria-label="Workflow media"
+            >
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Image
+                  src="/images/d1.png"
+                  alt="Zeno workflow visualization"
+                  fill
+                  className="object-contain"
+                  priority
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
               </div>
             </div>
           </div>

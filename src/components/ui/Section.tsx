@@ -1,4 +1,4 @@
-import type { ElementType, HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils/cn";
 import { Container } from "./Container";
 
@@ -17,7 +17,7 @@ const toneClasses: Record<SectionTone, string> = {
   night: "bg-night text-night-ink",
 };
 
-export type SectionProps = {
+type SectionProps = {
   tone?: SectionTone;
   /** Vertical padding. `tight` for adjacent bands, `none` when folded into a parent. */
   spacing?: "tight" | "default" | "loose" | "none";
@@ -25,7 +25,6 @@ export type SectionProps = {
   contained?: boolean;
   containerSize?: "default" | "wide" | "prose" | "full";
   divider?: boolean;
-  as?: ElementType;
   children: ReactNode;
   className?: string;
   containerClassName?: string;
@@ -44,13 +43,11 @@ export function Section({
   contained = true,
   containerSize = "default",
   divider = false,
-  as,
   children,
   className,
   containerClassName,
   ...rest
 }: SectionProps) {
-  const Tag = (as ?? "section") as ElementType;
   const inner = contained ? (
     <Container size={containerSize} className={containerClassName}>
       {children}
@@ -60,7 +57,7 @@ export function Section({
   );
 
   return (
-    <Tag
+    <section
       className={cn(
         "relative",
         toneClasses[tone],
@@ -72,6 +69,6 @@ export function Section({
       {...rest}
     >
       {inner}
-    </Tag>
+    </section>
   );
 }

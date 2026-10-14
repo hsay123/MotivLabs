@@ -1,12 +1,11 @@
-import type { ElementType, HTMLAttributes } from "react";
+import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/utils/cn";
 
-type ContainerProps<T extends ElementType> = {
-  as?: T;
+type ContainerProps = {
   /** `default` = 1280px content column; `wide` = 1440px; `prose` = readable measure. */
   size?: "default" | "wide" | "prose" | "full";
   className?: string;
-} & Omit<HTMLAttributes<HTMLElement>, "className">;
+} & Omit<HTMLAttributes<HTMLDivElement>, "className">;
 
 const sizes = {
   default: "max-w-container",
@@ -19,15 +18,13 @@ const sizes = {
  * The single content container used across the site.
  * 1280px max width with 20→40px gutters, matching the reference rhythm.
  */
-export function Container<T extends ElementType = "div">({
-  as,
+export function Container({
   size = "default",
   className,
   ...rest
-}: ContainerProps<T>) {
-  const Tag = (as ?? "div") as ElementType;
+}: ContainerProps) {
   return (
-    <Tag
+    <div
       className={cn("mx-auto w-full px-5 sm:px-8 lg:px-10", sizes[size], className)}
       {...rest}
     />
