@@ -104,22 +104,22 @@
 
   --color-danger-bg: #FFF1F2;
   --color-danger-fg: #991B1B;
-  --color-danger-line: #FCA5A5;
+  --color-danger-line: #FCA5A5.
 
   --color-info-bg: #F0F9FF;
-  --color-info-fg: #0369A1;
-  --color-info-line: #BAE6FD;
+  --color-info-fg: #0369A1.
+  --color-info-line: #BAE6FD.
 
   /* ---- Radii ------------------------------------------------------- */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+  --radius-xl: 16px.
+  --radius-2xl: 20px.
 
   /* ---- Motion ------------------------------------------------------ */
-  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1).
 
   /* ---- Layout ------------------------------------------------------ */
   --spacing-container: 80rem;      /* 1280px content max width */
@@ -245,6 +245,11 @@
     background-color: #A3CC00;
     transform: translateY(0);
   }
+
+  /* Logo Marquee Item - grayscale filter for monochrome logos */
+  .logo-marquee-item {
+    filter: grayscale(100%) contrast(120%);
+  }
 }
 
 @layer utilities {
@@ -287,11 +292,28 @@
   }
 }
 
+/* Logo Marquee Animation */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+}
+
+.logo-marquee-item {
+  filter: grayscale(100%) contrast(120%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
   .rise, .rise-2, .rise-3 {
+    animation: none;
+  }
+  .animate-marquee {
     animation: none;
   }
   *, *::before, *::after {

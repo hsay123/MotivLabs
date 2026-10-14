@@ -8,10 +8,11 @@ import { ButtonLink } from "@/components/ui/Button";
  *
  * Constrained container with rounded corners, video background,
  * dark overlay, and centered content with single Lime Green CTA.
+ * Reduced top spacing to sit close to navbar.
  */
 export function Hero() {
   return (
-    <section className="relative overflow-hidden pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pb-28 lg:pt-24">
+    <section className="relative overflow-hidden pb-20 pt-8 sm:pb-20 sm:pt-12 lg:pb-24 lg:pt-16">
       {/* Constrained Hero Container with Rounded Corners */}
       <div className="relative z-10 mx-auto max-w-[1400px] rounded-2xl overflow-hidden bg-black">
         {/* Video Background */}

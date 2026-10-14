@@ -6,6 +6,7 @@ import { CredibilityStrip } from "@/components/marketing/CredibilityStrip";
 import { Faq } from "@/components/marketing/Faq";
 import { FinalCta } from "@/components/marketing/FinalCta";
 import { Hero } from "@/components/marketing/Hero";
+import { LogoMarquee } from "@/components/marketing/LogoMarquee";
 import { ProductShowcase } from "@/components/marketing/ProductShowcase";
 import { TrustProvenance } from "@/components/marketing/TrustProvenance";
 import { UseCases } from "@/components/marketing/UseCases";
@@ -30,6 +31,7 @@ export default function HomePage() {
   return (
     <>
       <Hero />
+      <LogoMarquee />
       <CredibilityStrip />
       <CapabilityIntro />
       {capabilities.map((capability, index) => (
