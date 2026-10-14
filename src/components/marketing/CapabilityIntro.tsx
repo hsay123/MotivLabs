@@ -168,7 +168,7 @@ export function CapabilityIntro() {
             )}
 
             {/* Foreground Content — two-column layout on desktop: text left, image right */}
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-6 items-center">
               {/* Left column — text content */}
               <div className="lg:col-start-1 min-w-0">
                 {/* Tag Line */}
@@ -246,7 +246,7 @@ export function CapabilityIntro() {
               {/* Right column — workflow image (D2.png) */}
               <div
                 className="workflow-image-wrapper lg:col-start-2"
-                style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}
+                style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', marginLeft: '-2rem', alignItems: 'center' }}
               >
                 <img
                   src="/images/d2.png"
@@ -256,12 +256,14 @@ export function CapabilityIntro() {
                   className="workflow-bento-image"
                   style={{
                     width: '100%',
-                    maxWidth: '500px',
+                    maxWidth: '680px',
                     height: 'auto',
                     objectFit: 'contain',
                     borderRadius: '16px',
                     boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.1)',
                     border: '1px solid rgba(255, 255, 255, 0.4)',
+                    transform: 'scale(1.08)',
+                    transformOrigin: 'left center',
                   }}
                 />
               </div>
