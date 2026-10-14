@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Verify VERCEL_TOKEN
         run: |
@@ -28,8 +28,10 @@ jobs:
           fi
           echo "VERCEL_TOKEN is configured"
 
-      - name: Install Vercel CLI
-        run: npm i -g vercel@latest
+      - name: Install Vercel CLI and jq
+        run: |
+          npm i -g vercel@latest
+          sudo apt-get update && sudo apt-get install -y jq
 
       - name: Get latest READY frontend deployment for release/rc-integration
         id: frontend-deployment
@@ -37,22 +39,28 @@ jobs:
           echo "Finding latest READY frontend deployment for release/rc-integration..."
           
           # Get deployments for zeno-web project
-          DEPLOYMENTS=$(vercel ls zeno-web --scope=yashlandge150-gmailcoms-projects --token=${{ secrets.VERCEL_TOKEN }} --json 2>/dev/null)
+          DEPLOYMENTS=$(vercel ls zeno-web --scope=yashlandge150-gmailcoms-projects --token=${{ secrets.VERCEL_TOKEN }} --json 2>&1)
           
-          if [ -z "$DEPLOYMENTS" ] || [ "$DEPLOYMENTS" = "null" ]; then
+          if [ -z "$DEPLOYMENTS" ]; then
             echo "::error::Failed to fetch Vercel deployments for zeno-web"
             exit 1
           fi
           
-          # Filter for READY preview deployments from release/rc-integration branch
+          echo "Raw deployments output (first 500 chars):"
+          echo "$DEPLOYMENTS" | head -c 500
+          
+          # Try to parse as JSON array or object
           DEPLOYMENT_URL=$(echo "$DEPLOYMENTS" | jq -r '
-            .deployments[]
-            | select(.target=="preview" and .readyState=="READY" and .meta.githubCommitRef=="release/rc-integration")
-            | .url
-          ' | head -1)
+            # Handle both array and object with deployments field
+            (if type == "array" then . else .deployments // [] end)
+            | map(select(.target=="preview" and .readyState=="READY" and .meta.githubCommitRef=="release/rc-integration"))
+            | sort_by(.createdAt) | reverse | .[0] | .url
+          ' 2>/dev/null)
           
           if [ -z "$DEPLOYMENT_URL" ] || [ "$DEPLOYMENT_URL" = "null" ]; then
             echo "::error::No READY frontend Preview deployment found for release/rc-integration branch"
+            echo "Full deployments output:"
+            echo "$DEPLOYMENTS"
             exit 1
           fi
           
@@ -65,22 +73,28 @@ jobs:
           echo "Finding latest READY backend deployment for release/rc-integration..."
           
           # Get deployments for zeno-api project
-          DEPLOYMENTS=$(vercel ls zeno-api --scope=yashlandge150-gmailcoms-projects --token=${{ secrets.VERCEL_TOKEN }} --json 2>/dev/null)
+          DEPLOYMENTS=$(vercel ls zeno-api --scope=yashlandge150-gmailcoms-projects --token=${{ secrets.VERCEL_TOKEN }} --json 2>&1)
           
-          if [ -z "$DEPLOYMENTS" ] || [ "$DEPLOYMENTS" = "null" ]; then
+          if [ -z "$DEPLOYMENTS" ]; then
             echo "::error::Failed to fetch Vercel deployments for zeno-api"
             exit 1
           fi
           
-          # Filter for READY preview deployments from release/rc-integration branch
+          echo "Raw deployments output (first 500 chars):"
+          echo "$DEPLOYMENTS" | head -c 500
+          
+          # Try to parse as JSON array or object
           DEPLOYMENT_URL=$(echo "$DEPLOYMENTS" | jq -r '
-            .deployments[]
-            | select(.target=="preview" and .readyState=="READY" and .meta.githubCommitRef=="release/rc-integration")
-            | .url
-          ' | head -1)
+            # Handle both array and object with deployments field
+            (if type == "array" then . else .deployments // [] end)
+            | map(select(.target=="preview" and .readyState=="READY" and .meta.githubCommitRef=="release/rc-integration"))
+            | sort_by(.createdAt) | reverse | .[0] | .url
+          ' 2>/dev/null)
           
           if [ -z "$DEPLOYMENT_URL" ] || [ "$DEPLOYMENT_URL" = "null" ]; then
             echo "::error::No READY backend Preview deployment found for release/rc-integration branch"
+            echo "Full deployments output:"
+            echo "$DEPLOYMENTS"
             exit 1
           fi
           
