@@ -10,17 +10,10 @@ import { ArrowRight, ChevronDown, Close, Menu } from "@/components/ui/icons";
 import { Wordmark } from "./Wordmark";
 
 /**
- * Site header.
+ * Site header — Encord Style.
  *
- * Desktop: a horizontal rail of disclosure menus plus the primary
- * actions. Dropdowns open on hover and on click/Enter, and close on
- * Escape or when the pointer leaves the group. Focus is deliberately not
- * used to open a menu — doing so would make the first click (or Enter)
- * immediately toggle the just-focused panel shut.
- *
- * Mobile: a single toggle opening a full-height panel of accordion
- * groups. The panel traps nothing, but closes on route change and
- * restores focus to the toggle.
+ * Pure white background, black text, Lime Green primary CTA.
+ * Slight border-radius (6px) on buttons.
  */
 export function SiteHeader() {
   const pathname = usePathname();
@@ -83,11 +76,11 @@ function HeaderBar({ pathname }: { pathname: string }) {
     <header
       className={cn(
         "sticky top-0 z-50 border-b transition-colors duration-200",
-        scrolled ? "backdrop-chrome border-line" : "border-transparent bg-canvas",
+        scrolled ? "bg-white/95 backdrop-blur-sm border-[#E0E0E0]" : "bg-white border-transparent",
       )}
     >
       <div className="mx-auto flex h-16 w-full max-w-container items-center gap-3 px-5 sm:h-[72px] sm:px-8 lg:px-10">
-        <Wordmark />
+        <Wordmark tone="light" />
 
         {/* ---- Desktop navigation ---------------------------------- */}
         <div
@@ -126,16 +119,16 @@ function HeaderBar({ pathname }: { pathname: string }) {
                     setOpenGroup(open ? null : group.label);
                   }}
                   className={cn(
-                    "inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-body-sm font-medium transition-colors",
+                    "inline-flex h-10 items-center gap-1.5 rounded-sm px-4 text-body-sm font-medium transition-colors",
                     open || isActive(group)
-                      ? "bg-surface-muted text-ink"
-                      : "text-ink-2 hover:bg-surface-muted hover:text-ink",
+                      ? "bg-[#F5F5F5] text-[#000000]"
+                      : "text-[#333333] hover:bg-[#F5F5F5] hover:text-[#000000]",
                   )}
                 >
                   {group.label}
                   <ChevronDown
                     className={cn(
-                      "h-3.5 w-3.5 text-ink-4 transition-transform duration-200",
+                      "h-4 w-4 text-[#666666] transition-transform duration-200",
                       open && "rotate-180",
                     )}
                   />
@@ -148,11 +141,11 @@ function HeaderBar({ pathname }: { pathname: string }) {
                   hidden={!open}
                   className="absolute left-0 top-[calc(100%+6px)] w-[min(46rem,calc(100vw-3rem))] origin-top-left"
                 >
-                  <div className="overflow-hidden rounded-xl border border-line bg-surface p-2 shadow-[0_18px_40px_-24px_rgba(22,19,14,0.35)]">
+                  <div className="overflow-hidden rounded-lg border border-[#E0E0E0] bg-white p-2 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.15)]">
                     <div className="grid gap-1 sm:grid-cols-2">
                       {group.columns.map((column) => (
                         <div key={column.heading} className="p-3">
-                          <p className="px-2.5 pb-2 text-eyebrow uppercase text-ink-4">
+                          <p className="px-3 pb-2 text-eyebrow uppercase text-[#666666]">
                             {column.heading}
                           </p>
                           <ul className="space-y-0.5">
@@ -166,7 +159,7 @@ function HeaderBar({ pathname }: { pathname: string }) {
                       ))}
                     </div>
                     {group.footnote ? (
-                      <div className="mt-1 border-t border-line px-3 py-3">
+                      <div className="mt-1 border-t border-[#E0E0E0] px-3 py-3">
                         <NavItem link={group.footnote} prominent />
                       </div>
                     ) : null}
@@ -179,10 +172,10 @@ function HeaderBar({ pathname }: { pathname: string }) {
           <Link
             href="/how-it-works"
             className={cn(
-              "inline-flex h-9 items-center rounded-md px-3 text-body-sm font-medium transition-colors",
+              "inline-flex h-10 items-center rounded-sm px-4 text-body-sm font-medium transition-colors",
               pathname === "/how-it-works"
-                ? "bg-surface-muted text-ink"
-                : "text-ink-2 hover:bg-surface-muted hover:text-ink",
+                ? "bg-[#F5F5F5] text-[#000000]"
+                : "text-[#333333] hover:bg-[#F5F5F5] hover:text-[#000000]",
             )}
           >
             How it works
@@ -190,10 +183,10 @@ function HeaderBar({ pathname }: { pathname: string }) {
         </div>
 
         {/* ---- Desktop actions ------------------------------------- */}
-        <div className="ml-auto hidden items-center gap-2 lg:flex">
+        <div className="ml-auto hidden items-center gap-3 lg:flex">
           <Link
             href={headerActions.signIn.href}
-            className="inline-flex h-9 items-center rounded-md px-3 text-body-sm font-medium text-ink-2 transition-colors hover:bg-surface-muted hover:text-ink"
+            className="inline-flex h-10 items-center rounded-sm px-4 text-body-sm font-medium text-[#333333] transition-colors hover:bg-[#F5F5F5] hover:text-[#000000]"
           >
             {headerActions.signIn.label}
           </Link>
@@ -208,7 +201,7 @@ function HeaderBar({ pathname }: { pathname: string }) {
         {/* ---- Mobile toggle --------------------------------------- */}
         <button
           type="button"
-          className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-md border border-line text-ink transition-colors hover:bg-surface-muted lg:hidden"
+          className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-sm border border-[#E0E0E0] text-[#000000] transition-colors hover:bg-[#F5F5F5] lg:hidden"
           aria-expanded={mobileOpen}
           aria-controls="mobile-nav"
           onClick={() => setMobileOpen((value) => !value)}
@@ -238,20 +231,20 @@ function NavItem({
       <span className="flex items-center gap-2">
         <span
           className={cn(
-            "text-body-sm font-medium",
-            prominent ? "text-accent-700" : "text-ink",
+            "text-body-sm font-semibold",
+            prominent ? "text-[#CCFF00]" : "text-[#000000]",
           )}
         >
           {link.label}
         </span>
         {planned ? (
-          <span className="rounded-full border border-line-strong px-2 py-0.5 text-[11px] font-medium text-ink-4">
+          <span className="rounded-full border border-[#CCCCCC] px-2 py-0.5 text-[11px] font-medium text-[#666666]">
             Planned
           </span>
         ) : null}
       </span>
       {link.description ? (
-        <span className="mt-0.5 block text-caption text-ink-3">{link.description}</span>
+        <span className="mt-0.5 block text-caption text-[#666666]">{link.description}</span>
       ) : null}
     </>
   );
@@ -260,7 +253,7 @@ function NavItem({
     return (
       <div
         aria-disabled="true"
-        className="block cursor-default rounded-md px-2.5 py-2 opacity-70"
+        className="block cursor-default rounded-sm px-3 py-2 opacity-70"
       >
         {body}
       </div>
@@ -271,8 +264,8 @@ function NavItem({
     <Link
       href={link.href}
       className={cn(
-        "block rounded-md px-2.5 py-2 transition-colors hover:bg-surface-muted",
-        prominent && "hover:bg-accent-50",
+        "block rounded-sm px-3 py-2 transition-colors hover:bg-[#F5F5F5]",
+        prominent && "hover:bg-[#F4FFF0]",
       )}
     >
       {body}
@@ -293,10 +286,10 @@ function MobilePanel({
   return (
     <div
       id="mobile-nav"
-      className="fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto border-t border-line bg-canvas lg:hidden"
+      className="fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto border-t border-[#E0E0E0] bg-white lg:hidden"
     >
       <nav className="mx-auto w-full max-w-container px-5 py-4 sm:px-8">
-        <ul className="divide-y divide-line">
+        <ul className="divide-y divide-[#E0E0E0]">
           {primaryNav.map((group) => {
             const expanded = open === group.label;
             const panelId = `${baseId}-${group.label}`;
@@ -307,14 +300,14 @@ function MobilePanel({
                   aria-expanded={expanded}
                   aria-controls={panelId}
                   onClick={() => setOpen(expanded ? null : group.label)}
-                  className="flex w-full items-center justify-between gap-3 rounded-md px-1 py-3 text-left"
+                  className="flex w-full items-center justify-between gap-3 rounded-sm px-1 py-3 text-left"
                 >
-                  <span className="font-display text-[1.0625rem] font-medium text-ink">
+                  <span className="font-display text-[1.0625rem] font-semibold text-[#000000]">
                     {group.label}
                   </span>
                   <ChevronDown
                     className={cn(
-                      "h-4 w-4 text-ink-4 transition-transform duration-200",
+                      "h-4 w-4 text-[#666666] transition-transform duration-200",
                       expanded && "rotate-180",
                     )}
                   />
@@ -323,14 +316,14 @@ function MobilePanel({
                   <Link
                     href={group.href}
                     onClick={onNavigate}
-                    className="mb-1 flex items-center gap-1.5 rounded-md px-1 py-2 text-body-sm font-medium text-accent-700"
+                    className="mb-1 flex items-center gap-1.5 rounded-sm px-1 py-2 text-body-sm font-medium text-[#CCFF00]"
                   >
                     {group.label} overview
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                   {group.columns.map((column) => (
                     <div key={column.heading} className="mt-2">
-                      <p className="px-1 pb-1 text-eyebrow uppercase text-ink-4">
+                      <p className="px-1 pb-1 text-eyebrow uppercase text-[#666666]">
                         {column.heading}
                       </p>
                       <ul>
@@ -341,8 +334,8 @@ function MobilePanel({
                                 aria-disabled="true"
                                 className="flex items-center justify-between gap-2 px-1 py-2 opacity-70"
                               >
-                                <span className="text-body-sm text-ink">{link.label}</span>
-                                <span className="rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-ink-4">
+                                <span className="text-body-sm text-[#000000]">{link.label}</span>
+                                <span className="rounded-full border border-[#CCCCCC] px-2 py-0.5 text-[11px] text-[#666666]">
                                   Planned
                                 </span>
                               </div>
@@ -350,7 +343,7 @@ function MobilePanel({
                               <Link
                                 href={link.href}
                                 onClick={onNavigate}
-                                className="block px-1 py-2 text-body-sm text-ink-2"
+                                className="block px-1 py-2 text-body-sm text-[#333333]"
                               >
                                 {link.label}
                               </Link>
@@ -369,8 +362,8 @@ function MobilePanel({
               href="/how-it-works"
               onClick={onNavigate}
               className={cn(
-                "block rounded-md px-1 py-3 font-display text-[1.0625rem] font-medium",
-                pathname === "/how-it-works" ? "text-accent-700" : "text-ink",
+                "block rounded-sm px-1 py-3 font-display text-[1.0625rem] font-semibold",
+                pathname === "/how-it-works" ? "text-[#CCFF00]" : "text-[#000000]",
               )}
             >
               How it works
@@ -378,7 +371,7 @@ function MobilePanel({
           </li>
         </ul>
 
-        <div className="mt-6 flex flex-col gap-2 pb-10">
+        <div className="mt-8 flex flex-col gap-3 pb-12">
           <ButtonLink href={headerActions.primary.href} size="lg" onClick={onNavigate}>
             {headerActions.primary.label}
           </ButtonLink>
@@ -393,7 +386,7 @@ function MobilePanel({
           <Link
             href={headerActions.signIn.href}
             onClick={onNavigate}
-            className="py-2 text-center text-body-sm font-medium text-ink-2"
+            className="py-3 text-center text-body-sm font-medium text-[#333333]"
           >
             {headerActions.signIn.label}
           </Link>

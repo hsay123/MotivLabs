@@ -13,18 +13,18 @@ export type ButtonVariant =
 export type ButtonSize = "sm" | "md" | "lg";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  // The single accent action. Used sparingly — one per view ideally.
+  // The single accent action — Encord Lime Green (#CCFF00) with black text
   primary:
-    "bg-accent-600 text-white hover:bg-accent-700 active:bg-accent-800 shadow-[0_1px_2px_rgba(22,19,14,0.16)]",
+    "bg-[#CCFF00] text-[#000000] font-semibold hover:bg-[#B8E600] active:bg-[#A3CC00] shadow-[0_1px_2px_rgba(0,0,0,0.08)] rounded-sm",
   // Neutral supporting action on light surfaces.
   secondary:
-    "bg-surface text-ink border border-line-strong hover:border-ink-4 hover:bg-surface-muted",
-  ghost: "text-ink-2 hover:text-ink hover:bg-surface-muted",
+    "bg-white text-[#000000] border border-[#CCCCCC] hover:border-[#999999] hover:bg-[#F5F5F5] font-medium rounded-sm",
+  ghost: "text-[#333333] hover:text-[#000000] hover:bg-[#F5F5F5] font-medium rounded-sm",
   // On dark/night surfaces.
-  inverse: "bg-white text-ink hover:bg-white/90",
+  inverse: "bg-white text-[#000000] hover:bg-white/90 rounded-sm",
   "inverse-outline":
-    "border border-line-inverse text-night-ink hover:bg-white/10 hover:border-white/30",
-  danger: "bg-danger-fg text-white hover:brightness-110",
+    "border border-white/20 text-white hover:bg-white/10 hover:border-white/30 rounded-sm",
+  danger: "bg-[#DC2626] text-white hover:bg-[#B91C1C] rounded-sm",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -34,7 +34,7 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 const baseClasses =
-  "inline-flex select-none items-center justify-center rounded-md font-medium transition-colors duration-150 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex select-none items-center justify-center font-semibold transition-colors duration-150 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50";
 
 type CommonProps = {
   variant?: ButtonVariant;
