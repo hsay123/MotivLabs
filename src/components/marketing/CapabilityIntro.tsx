@@ -1,15 +1,14 @@
 import { capabilityIntro } from "@/lib/content/landing";
-import { media } from "@/lib/media/assets";
-import { MediaPlaceholder } from "@/components/media/MediaPlaceholder";
 import { Container } from "@/components/ui/Container";
 import { Section } from "@/components/ui/Section";
 import { Eyebrow } from "@/components/ui/SectionHeading";
 import { BentoCard } from "@/components/ui/BentoCard";
 
 /**
- * Capability Introduction — Encord Bento Box Style.
+ * Capability Introduction — Encord Workflow Style.
  *
- * Large full-width feature card followed by a 2-column grid of feature cards.
+ * Large full-width feature card with animated WebM background,
+ * followed by a 2-column grid of feature cards.
  */
 export function CapabilityIntro() {
   return (
@@ -27,24 +26,51 @@ export function CapabilityIntro() {
 
         {/* Bento Grid — Full width featured card + 2 column grid */}
         <div className="grid gap-6 lg:gap-8 lg:grid-cols-2">
-          {/* Large Featured Card - Full Width */}
-          <div className="bento-card lg:col-span-2 relative overflow-hidden">
-            <div className="absolute inset-0">
-              <MediaPlaceholder
-                asset={media.capabilityOverview}
-                tone="light"
-                sizes="(min-width: 1280px) 1200px, 100vw"
-              />
-            </div>
-            <div className="relative z-10 p-8 lg:p-12 lg:pt-16 lg:pb-12 lg:pl-16">
-              <div className="max-w-xl">
-                <Eyebrow className="text-white/80">{capabilityIntro.eyebrow}</Eyebrow>
-                <h3 className="mt-4 text-display-md text-white font-bold tracking-[-0.03em] leading-[1.05] hyphens-none word-break-keep-all"
-                    dangerouslySetInnerHTML={{ __html: capabilityIntro.heading }} />
-                <p className="mt-4 text-body-lg text-white/90 leading-relaxed max-w-xl">
-                  {capabilityIntro.support}
-                </p>
-              </div>
+          {/* Large Featured Card - Full Width with Animated Background */}
+          <div className="bento-card lg:col-span-2 relative overflow-hidden bg-[#F8F9FA] border border-[#E5E7EB] p-8 lg:p-12 lg:px-16"
+               style={{ borderRadius: '24px' }}>
+            {/* Background Video Asset — WebM Animation */}
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="workflow-bg-video"
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: 'right center',
+                pointerEvents: 'none',
+                zIndex: 1,
+                opacity: 0.85,
+                borderRadius: '24px',
+              }}
+              aria-hidden="true"
+            >
+              <source src="https://encord.cdn.prismic.io/encord/ah7U1geQX7-eWjLz_Data-layer-graphic_17.webm" type="video/webm" />
+            </video>
+
+            {/* Foreground Content Container */}
+            <div className="relative z-10 max-w-[680px]">
+              {/* Tag Line */}
+              <Eyebrow className="text-[#CCFF00] text-eyebrow tracking-[0.08em]">
+                <span aria-hidden className="inline-block h-1 w-1 rounded-full bg-[#CCFF00] mr-2" />
+                THE WORKFLOW
+              </Eyebrow>
+
+              {/* Heading (Two-Line Alignment) */}
+              <h3 className="mt-4 font-display font-bold text-[#0F172A] tracking-[-0.02em] leading-[1.15] hyphens-none word-break-keep-all max-w-[620px]"
+                  style={{ fontSize: 'clamp(2.2rem, 3.5vw, 3.2rem)' }}
+                  dangerouslySetInnerHTML={{ __html: capabilityIntro.heading }} />
+
+              {/* Body Text */}
+              <p className="mt-6 text-body-lg text-[#475569] leading-relaxed max-w-[580px]">
+                {capabilityIntro.support}
+              </p>
             </div>
           </div>
 
