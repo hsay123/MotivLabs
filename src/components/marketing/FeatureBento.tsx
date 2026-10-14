@@ -5,15 +5,20 @@
  *
  * Full-width bento card with embedded video on left, text and CTA on right.
  * Responsive: 2-column grid on desktop, stacked on mobile.
- * Pushed below the fold with large top margin.
+ * Pushed below the fold with top margin.
  */
 export function FeatureBento() {
   return (
-    <section className="bg-white py-16 lg:py-24" style={{ marginTop: '10rem !important' }}>
+    <section className="bg-white py-16 lg:py-24" style={{ marginTop: '9.25rem !important' }}>
       <div className="mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-10">
-        {/* Section Header */}
-        <div className="mx-auto max-w-3xl text-center mb-16 lg:mb-20">
-          <h2 className="font-display text-display-lg text-[#000000] font-bold tracking-[-0.04em] leading-[1.0]">
+        {/* Section Header — single-line heading on desktop */}
+        <div className="mx-auto w-full max-w-none text-center mb-16 lg:mb-20">
+          <h2 className="font-display font-bold text-[#000000] tracking-[-0.02em] leading-[1.1] lg:whitespace-nowrap"
+              style={{ 
+                fontSize: 'clamp(2.2rem, 3.5vw, 3.2rem)',
+                maxWidth: 'max-content',
+                margin: '0 auto'
+              }}>
             Manage, curate, and annotate AI data
           </h2>
           <p className="mt-4 text-body-lg text-[#555555] leading-relaxed max-w-2xl mx-auto">
