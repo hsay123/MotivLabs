@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { capabilityIntro } from "@/lib/content/landing";
 import { Container } from "@/components/ui/Container";
 import { Section } from "@/components/ui/Section";
@@ -168,122 +167,102 @@ export function CapabilityIntro() {
               </div>
             )}
 
-            {/* Foreground Content Container */}
-            <div className="relative z-10 max-w-[680px]">
-              {/* Tag Line */}
-              <div style={{ opacity: isInView ? 1 : 0, transform: isInView ? 'translateY(0)' : 'translateY(10px)', transition: 'all 0.6s ease-out 0.1s' }}>
-                <Eyebrow className="text-[#CCFF00] text-eyebrow tracking-[0.08em] mb-2">
-                  <span aria-hidden className="inline-block h-1 w-1 rounded-full bg-[#CCFF00] mr-2" />
-                  THE WORKFLOW
-                </Eyebrow>
-              </div>
+            {/* Foreground Content — two-column layout on desktop: text left, image right */}
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+              {/* Left column — text content */}
+              <div className="lg:col-start-1 min-w-0">
+                {/* Tag Line */}
+                <div style={{ opacity: isInView ? 1 : 0, transform: isInView ? 'translateY(0)' : 'translateY(10px)', transition: 'all 0.6s ease-out 0.1s' }}>
+                  <Eyebrow className="text-[#CCFF00] text-eyebrow tracking-[0.08em] mb-2">
+                    <span aria-hidden className="inline-block h-1 w-1 rounded-full bg-[#CCFF00] mr-2" />
+                    THE WORKFLOW
+                  </Eyebrow>
+                </div>
 
-              {/* Heading (Two-Line Alignment) */}
-              <h3 className="mt-4 font-display font-bold text-[#0F172A] tracking-[-0.02em] leading-[1.15] hyphens-none word-break-keep-all max-w-[620px]"
-                  style={{
-                    fontSize: 'clamp(2.2rem, 3.5vw, 3.2rem)',
-                    opacity: isInView ? 1 : 0,
-                    transform: isInView ? 'translateY(0)' : 'translateY(16px)',
-                    transition: 'all 0.7s ease-out 0.2s',
-                  }}
-                  dangerouslySetInnerHTML={{ __html: capabilityIntro.heading }} />
+                {/* Heading (Two-Line Alignment) */}
+                <h3 className="mt-4 font-display font-bold text-[#0F172A] tracking-[-0.02em] leading-[1.15] hyphens-none word-break-keep-all max-w-[620px]"
+                    style={{
+                      fontSize: 'clamp(2.2rem, 3.5vw, 3.2rem)',
+                      opacity: isInView ? 1 : 0,
+                      transform: isInView ? 'translateY(0)' : 'translateY(16px)',
+                      transition: 'all 0.7s ease-out 0.2s',
+                    }}
+                    dangerouslySetInnerHTML={{ __html: capabilityIntro.heading }} />
 
-              {/* Body Text */}
-              <p className="mt-6 text-body-lg text-[#475569] leading-relaxed max-w-[580px]"
-                 style={{
-                   opacity: isInView ? 1 : 0,
-                   transform: isInView ? 'translateY(0)' : 'translateY(16px)',
-                   transition: 'all 0.7s ease-out 0.35s',
-                 }}>
-                {capabilityIntro.support}
-              </p>
-
-              {/* Workflow Stage Indicators - Progressive Reveal */}
-              <div className="mt-10 flex flex-wrap items-center gap-4 lg:gap-6"
+                {/* Body Text */}
+                <p className="mt-6 text-body-lg text-[#475569] leading-relaxed max-w-[580px]"
                    style={{
                      opacity: isInView ? 1 : 0,
-                     transform: isInView ? 'translateY(0)' : 'translateY(20px)',
-                     transition: 'all 0.8s ease-out 0.5s',
-                   }}>
-                {workflowStages.map((stage, index) => (
-                  <div
-                    key={stage.label}
-                    className="flex items-center gap-2 px-3 py-2 bg-white/80 backdrop-blur-sm border border-[#E5E7EB] rounded-lg text-sm font-medium text-[#0F172A]"
-                    style={{
-                      transition: 'all 0.4s ease-out',
-                      animationDelay: `${0.1 + index * 0.08}s`,
-                    }}
-                  >
-                    <span
-                      className="flex h-6 w-6 items-center justify-center text-xs font-bold text-white rounded-full"
-                      style={{ background: '#CCFF00', color: '#000000' }}
-                      aria-hidden
-                    >
-                      {index + 1}
-                    </span>
-                    <span className="hidden sm:inline">{stage.label}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Traceability Detail - Illustrative */}
-              <div className="mt-8 flex items-center gap-3 px-4 py-3 bg-white/60 backdrop-blur-sm border border-[#E5E7EB] rounded-lg max-w-[580px]"
-                   style={{
-                     opacity: isInView ? 0.9 : 0,
                      transform: isInView ? 'translateY(0)' : 'translateY(16px)',
-                     transition: 'all 0.7s ease-out 0.65s',
+                     transition: 'all 0.7s ease-out 0.35s',
                    }}>
-                <svg className="h-5 w-5 text-[#CCFF00] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                <div className="text-sm text-[#475569]">
-                  <span className="font-semibold text-[#0F172A]">Traceable by design:</span> schema version · review decision · recorded receipt
+                  {capabilityIntro.support}
+                </p>
+
+                {/* Workflow Stage Indicators - Progressive Reveal */}
+                <div className="mt-10 flex flex-wrap items-center gap-4 lg:gap-6"
+                     style={{
+                       opacity: isInView ? 1 : 0,
+                       transform: isInView ? 'translateY(0)' : 'translateY(20px)',
+                       transition: 'all 0.8s ease-out 0.5s',
+                     }}>
+                  {workflowStages.map((stage, index) => (
+                    <div
+                      key={stage.label}
+                      className="flex items-center gap-2 px-3 py-2 bg-white/80 backdrop-blur-sm border border-[#E5E7EB] rounded-lg text-sm font-medium text-[#0F172A]"
+                      style={{
+                        transition: 'all 0.4s ease-out',
+                        animationDelay: `${0.1 + index * 0.08}s`,
+                      }}
+                    >
+                      <span
+                        className="flex h-6 w-6 items-center justify-center text-xs font-bold text-white rounded-full"
+                        style={{ background: '#CCFF00', color: '#000000' }}
+                        aria-hidden
+                      >
+                        {index + 1}
+                      </span>
+                      <span className="hidden sm:inline">{stage.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Traceability Detail - Illustrative */}
+                <div className="mt-8 flex items-center gap-3 px-4 py-3 bg-white/60 backdrop-blur-sm border border-[#E5E7EB] rounded-lg max-w-[580px]"
+                     style={{
+                       opacity: isInView ? 0.9 : 0,
+                       transform: isInView ? 'translateY(0)' : 'translateY(16px)',
+                       transition: 'all 0.7s ease-out 0.65s',
+                     }}>
+                  <svg className="h-5 w-5 text-[#CCFF00] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  <div className="text-sm text-[#475569]">
+                    <span className="font-semibold text-[#0F172A]">Traceable by design:</span> schema version · review decision · recorded receipt
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Workflow Media — D1.png */}
-            {/* Layer 2: sits above the grid (z-0), accent line/video (z-1),
-                gradient overlay (z-2) and particle layer (z-3), so no
-                decorative layer can wash out the illustration. */}
-            <div
-              className="hidden lg:block absolute right-0 top-1/2 -translate-y-1/2 w-[50%] max-w-[600px] h-[70%] min-h-[400px] pointer-events-none z-[5] rounded-2xl overflow-hidden"
-              style={{
-                opacity: 1,
-                filter: 'none',
-                mixBlendMode: 'normal',
-                isolation: 'isolate',
-              }}
-              aria-label="Workflow media"
-            >
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Image
-                  src="/images/d1.png"
-                  alt="Zeno workflow visualization"
-                  fill
-                  className="object-contain"
+              {/* Right column — workflow image (D2.png) */}
+              <div
+                className="workflow-image-wrapper lg:col-start-2"
+                style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}
+              >
+                <img
+                  src="/images/d2.png"
+                  alt="Workflow Pipeline Interface"
+                  width={1944}
+                  height={1236}
+                  className="workflow-bento-image"
                   style={{
-                    opacity: 1,
-                    /* Asset is a near-white illustration on a near-white card.
-                       Tuned down from the first attempt at
-                       contrast(1.5) brightness(0.75): that lifted the panel to
-                       a muddy mid-grey (#BFBFBF) flush against the card edge.
-                       brightness() alone is used instead because it preserves
-                       ink/white ordering — contrast() clipped the lightest
-                       strokes into the background — while giving a lighter
-                       panel and slightly better separation.
-                       Applied to the image only — never the media container,
-                       background grid, heading or any other content. */
-                    filter: 'brightness(0.85)',
-                    mixBlendMode: 'normal',
-                    objectFit: 'contain',
-                    objectPosition: 'center',
                     width: '100%',
-                    height: '100%',
-                    display: 'block',
+                    maxWidth: '500px',
+                    height: 'auto',
+                    objectFit: 'contain',
+                    borderRadius: '16px',
+                    boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.4)',
                   }}
-                  priority
-                  sizes="(max-width: 768px) 100vw, 50vw"
                 />
               </div>
             </div>
